@@ -1,4 +1,5 @@
 # tuzi_robot
+技术使用 vue3 + electron-vite + ts 
 
 ## 介绍
 
@@ -15,3 +16,6 @@ tuzi-rpa
 ![应用管理页](image.png)
 
 ![百度搜索自动化](image-1.png)
+
+
+感谢 electron-vite 作者的开源： https://github.com/alex8088/electron-vite
