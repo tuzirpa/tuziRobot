@@ -8,7 +8,9 @@ import { uploadFileToQiniu } from '../utils/qiniuUtils';
 import { appPlazaAdd, getDownloadUrl } from '../api/appplaza';
 import { downloadFileWithResume } from '../utils/download';
 import { WorkStatus } from './WorkStatusConf';
-import { AppVariable, ElementLibrary } from './types';
+import { AppVariable, DirectiveTree, ElementLibrary } from './types';
+import { convertDirective } from './directiveconvert';
+import http from 'http';
 
 /**
  * 广场的应用
@@ -24,6 +26,57 @@ export type AppPlaza = {
 };
 
 export class UserAppManage {
+    async executeStep(appId: string, step: DirectiveTree, index: number) {
+        // const userApp = this.findUserApp(appId);
+        //动态运行一般只在编写流程时使用，所以这里暂时不做错误处理，直接忽略错误，后续再考虑处理方式
+        step.failureStrategy = 'ignore';
+        let codejs = await convertDirective(step, index);
+        const outputKeys = Object.keys(step.outputs);
+        if (outputKeys.length === 0) {
+            codejs = codejs.replace('await robotUtil.', 'robotUtil.');
+        } else {
+            codejs = codejs.replace('await robotUtil.', 'robotUtil.');
+            const outputValueArr: string[] = [];
+            let thenRes = '';
+            outputKeys.forEach((key) => {
+                const output = step.outputs[key];
+                outputValueArr.push(`${output.name}`);
+                thenRes += `${output.name} = res.${key}; `;
+            });
+            const outputValString = 'var ' + outputValueArr.join(',') + ';';
+            codejs = codejs.substring(0, codejs.lastIndexOf(';')) + `.then((res)=>{${thenRes}});`;
+            codejs = `${outputValString}${codejs}`;
+        }
+        //已由指令强制更改成忽略错误
+        // codejs =
+        //     codejs.substring(0, codejs.lastIndexOf(';')) +
+        //     `.catch((res)=>{console.error('动态运行指令错误',res);});`;
+        const req = http.request(
+            {
+                hostname: '127.0.0.1',
+                port: 9015,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain'
+                }
+            },
+            (res) => {
+                console.log(`STATUS: ${res.statusCode}`);
+                console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
+                res.setEncoding('utf8');
+                res.on('data', (chunk) => {
+                    console.log(`BODY: ${chunk}`);
+                });
+                res.on('end', () => {
+                    console.log('No more data in response.');
+                });
+            }
+        );
+        req.write(codejs);
+        req.end();
+        return 'ok';
+    }
+
     updateUserAppDescription(appId: string, description: string) {
         const userApp = this.findUserApp(appId);
         userApp.description = description;

@@ -58,12 +58,12 @@ const defaultToCode = (directive: DirectiveTree, blockCode: string) => {
     return jsCode;
 };
 
-export async function convertDirective(directive: DirectiveTree, index: number, flow: Flow) {
+export async function convertDirective(directive: DirectiveTree, index: number, flow?: Flow) {
     let toCode = directiveToCodeMap.get(directive.key ?? directive.name);
     toCode = toCode || directive.toCode;
     const block: Block = {
         blockLine: index + 1,
-        flowName: flow.name,
+        flowName: flow?.name ?? '调试代码',
         directiveName: directive.name,
         directiveDisplayName: directive.displayName || directive.name,
         failureStrategy: directive.failureStrategy || 'terminate',

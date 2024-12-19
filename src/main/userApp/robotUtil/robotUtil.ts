@@ -41,7 +41,9 @@ function forRobotUtil(obj: any) {
                             console.error(
                                 `执行指令 ${blockInfo.directiveDisplayName} 异常,终止流程`
                             );
-                            process.exit(1);
+                            //向上抛出异常，以便后续加入try-catch处理
+                            throw error;
+                            // process.exit(1);
                         } else if (blockInfo.failureStrategy === 'ignore') {
                             console.error(
                                 `执行指令 ${blockInfo.directiveDisplayName} 异常 ,忽略错误`

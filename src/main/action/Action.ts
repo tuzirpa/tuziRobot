@@ -18,7 +18,7 @@ import { getRandom } from '../utils/RandomUtils';
 import { getDeviceID } from '../utils/divice';
 import { submitFeedback } from '../api/feedback';
 import { WorkStatus } from '../userApp/WorkStatusConf';
-import { AppVariable, ElementLibrary } from '../userApp/types';
+import { AppVariable, DirectiveTree, ElementLibrary } from '../userApp/types';
 import SystemDirectivePackageManage from '../systemDirective/SystemDirectivePackageManage';
 import * as lzString from 'lz-string';
 
@@ -27,6 +27,9 @@ import type { AppType } from '../userApp/UserApp';
 import { browserManage } from '../browser/BrowserManage';
 
 class Action {
+    static async executeStep(appId: string, step: DirectiveTree, index: number) {
+        return UserAppManage.executeStep(appId, step, index);
+    }
     static async updateUserAppDescription(appId: string, description: string) {
         return UserAppManage.updateUserAppDescription(appId, description);
     }

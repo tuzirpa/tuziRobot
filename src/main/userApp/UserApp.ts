@@ -520,7 +520,7 @@ export default class UserApp {
 
     async dev() {
         // 调试启动 带断点启动
-        return this.start(this.breakpoints);
+        return this.start(this.breakpoints, true);
     }
 
     #logsData: LogMessage[] = [];
@@ -543,14 +543,14 @@ export default class UserApp {
         this.#stepWindow?.webContents.send('run-step', data);
     }
 
-    async start(breakpoints: IBreakpoint[] = []) {
+    async start(breakpoints: IBreakpoint[] = [], isDebug: boolean = false) {
         this.#stepWindow = this.#stepWindow || new StepWindow(this.id);
         // this.#stepWindow.once('show', async () => {});
         if (!this.#stepWindow?.isVisible()) this.#stepWindow?.show();
         await sleep(1000);
-        this.startRun(breakpoints);
+        this.startRun(breakpoints, isDebug);
     }
-    startRun(breakpoints: IBreakpoint[] = []) {
+    startRun(breakpoints: IBreakpoint[] = [], isDebug: boolean = false) {
         // let breakpoints: IBreakpoint[] = [];
         // breakpoints = this.breakpoints;
         this.sendRunLogs({
@@ -569,7 +569,7 @@ export default class UserApp {
         });
 
         const cmds: string[] = [];
-        if (breakpoints.length > 0) {
+        if (isDebug) {
             cmds.push(`--inspect`);
         }
 
@@ -649,6 +649,14 @@ export default class UserApp {
             this.#lastLogsOutIndex = this.#logsData.length;
             this._sendRunLogs(data);
         });
+    }
+
+    async devRunJs(code: string) {
+        // 调试运行js代码
+        if (!this.#devNodeJs) {
+            throw new Error('调试进程未启动');
+        }
+        return this.#devNodeJs.runJs(code);
     }
 
     async lintError() {
