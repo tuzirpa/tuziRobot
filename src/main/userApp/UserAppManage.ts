@@ -2,8 +2,8 @@ import fs from 'fs';
 import UserApp, { AppType } from './UserApp';
 import { uuid } from '@shared/Utils';
 import Flow from './Flow';
-import { unzip, zip } from '../utils/zipUtils';
-import { join } from 'path';
+import { createTempFile, unzip, zip } from '../utils/zipUtils';
+import path, { join } from 'path';
 import { uploadFileToQiniu } from '../utils/qiniuUtils';
 import { appPlazaAdd, getDownloadUrl } from '../api/appplaza';
 import { downloadFileWithResume } from '../utils/download';
@@ -11,6 +11,7 @@ import { WorkStatus } from './WorkStatusConf';
 import { AppVariable, DirectiveTree, ElementLibrary } from './types';
 import { convertDirective } from './directiveconvert';
 import http from 'http';
+import { fileDecipher, fileEncipher } from '../utils/FileEncipherUtils';
 
 /**
  * 广场的应用
@@ -26,7 +27,7 @@ export type AppPlaza = {
 };
 
 export class UserAppManage {
-    async executeStep(appId: string, step: DirectiveTree, index: number) {
+    async executeStep(_appId: string, step: DirectiveTree, index: number) {
         // const userApp = this.findUserApp(appId);
         //动态运行一般只在编写流程时使用，所以这里暂时不做错误处理，直接忽略错误，后续再考虑处理方式
         step.failureStrategy = 'ignore';
@@ -176,7 +177,39 @@ export class UserAppManage {
         userApp.save();
         return userApp;
     }
-    async shareUserAppToPlaza(appId: string) {
+
+    /**
+     * 导入广场应用到本地
+     */
+    async importApp(zipPath: string) {
+        //创建本地应用 并设置成导入的应用
+        const tempFile = createTempFile('userApp', '.zip');
+        await fileDecipher(zipPath, tempFile, '123456');
+
+        unzip(tempFile, 'E:/temp111');
+
+        // // userApp.type = 'into';
+        // // userApp.intoId = app.id;
+        // userApp.name = app.name;
+        // userApp.description = app.description;
+        // userApp.version = app.version;
+        // //下载流程文件
+        // //获取下载地址
+        // const fileUrl = await getDownloadUrl(app.id);
+        // console.log(fileUrl, 'fileUrl');
+
+        // const zipPath = join(userApp.appDir, `dev.zip`);
+        // await downloadFileWithResume(fileUrl, zipPath);
+        // //解压流程文件
+        // await unzip(zipPath, userApp.appDir);
+        // //删除压缩文件
+        // fs.unlinkSync(zipPath);
+        //保存应用
+
+        return;
+    }
+
+    async shareUserAppToPlaza(appId: string, outFilePath: string) {
         const userApp = this.findUserApp(appId);
         if (userApp.type !== 'into') {
             //分享到广场
@@ -187,37 +220,42 @@ export class UserAppManage {
              * 4. 添加应用到应用广场
              * 5. 分享成功返回分享地址
              */
-            const zipPath = join(userApp.appDir, `${userApp.id}.zip`);
+            // const zipPath = join(userApp.appDir, `${userApp.id}.zip`);
+            const zipPath = createTempFile('userApp', '.zip');
             zip(zipPath, userApp.appDir, (filename) => {
-                if (filename.startsWith('logs')) {
-                    return false;
+                const includeDir = [
+                    'dev',
+                    'elementLibrary',
+                    'main.js',
+                    'tuziAppData.json',
+                    'package.json'
+                ];
+
+                if (includeDir.find((item) => filename.startsWith(item))) {
+                    return true;
                 }
-                if (filename.startsWith('main.js')) {
-                    return false;
-                }
-                if (filename.startsWith('package.json')) {
-                    return false;
-                }
-                return true;
+                return false;
             });
+            await fileEncipher(zipPath, path.join(outFilePath, `${userApp.name}.tuzi`), '123456');
+
             // TODO: 上传文件到服务器
-            const fileUrl = await uploadFileToQiniu(zipPath);
-            //删除压缩文件
-            fs.unlinkSync(zipPath);
+            // const fileUrl = await uploadFileToQiniu(zipPath);
+            // //删除压缩文件
+            // fs.unlinkSync(zipPath);
 
-            // TODO: 添加应用到应用广场
-            const appPlaza = await appPlazaAdd({
-                fileUrl,
-                appInfo: {
-                    name: userApp.name,
-                    description: userApp.description,
-                    version: userApp.version,
-                    id: userApp.id
-                }
-            });
-            console.log(appPlaza);
+            // // TODO: 添加应用到应用广场
+            // const appPlaza = await appPlazaAdd({
+            //     fileUrl,
+            //     appInfo: {
+            //         name: userApp.name,
+            //         description: userApp.description,
+            //         version: userApp.version,
+            //         id: userApp.id
+            //     }
+            // });
+            // console.log(appPlaza);
 
-            return appPlaza;
+            return zipPath;
         } else {
             throw new Error('分享类型错误');
         }

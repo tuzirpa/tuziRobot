@@ -80,6 +80,12 @@ async function intoAppToLocal() {
     sharedAppDialog.value.show = false;
 }
 
+async function fileImport() {
+    const appInfo = await Action.importApp();
+    console.log(appInfo);
+
+}
+
 </script>
 
 <template>
@@ -126,7 +132,7 @@ async function intoAppToLocal() {
                         </div>
                         <ElButton type="primary" :disabled="!sharedAppDialog.shareForm.content" @click="intoAppToLocal">导入
                         </ElButton>
-                        <ElButton type="primary">从文件导入</ElButton>
+                        <ElButton type="primary" @click="fileImport">从文件导入</ElButton>
                     </div>
                 </template>
             </el-dialog>
