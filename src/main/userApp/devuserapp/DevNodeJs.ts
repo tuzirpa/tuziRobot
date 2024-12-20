@@ -1,4 +1,3 @@
-import { exec } from 'child_process';
 import { WebSocket } from 'ws';
 
 export interface IBreakpoint {

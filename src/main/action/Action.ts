@@ -25,8 +25,13 @@ import * as lzString from 'lz-string';
 import tuziChromeEvbitonment from '../nodeEnvironment/TuziChromeEvbitonment';
 import type { AppType } from '../userApp/UserApp';
 import { browserManage } from '../browser/BrowserManage';
+import { title } from 'process';
 
 class Action {
+    static async importApp() {
+        const filePath = await this.selectFileOrFolder();
+        return UserAppManage.importApp(filePath[0]);
+    }
     static async executeStep(appId: string, step: DirectiveTree, index: number) {
         return UserAppManage.executeStep(appId, step, index);
     }
@@ -126,15 +131,45 @@ class Action {
     /**
      * 选择一个文件或文件夹
      */
-    static async selectFileOrFolder(openDirectory: boolean = false, extensions: string[] = ['*']) {
+    static async selectFileOrFolder(
+        openDirectory: boolean = false,
+        extensions: string[] = ['*'],
+        title?: string
+    ) {
         const properties = ['openFile'];
         openDirectory && properties.push('openDirectory');
-
+        const dialogTitle = title ?? `${openDirectory ? '选择文件夹' : '选择文件'}`;
         const res = await dialog.showOpenDialog({
             //@ts-ignore
             properties: properties,
-            message: `${openDirectory ? '选择文件夹' : '选择文件'}`,
+            message: dialogTitle,
             buttonLabel: '选择',
+            filters: [{ name: '所有文件', extensions }]
+        });
+        return res.filePaths;
+    }
+
+    /**
+     * 选择一个文件或文件夹
+     */
+    static async selectFileOrFolder1({
+        openDirectory = false,
+        extensions = ['*'],
+        title
+    }: {
+        openDirectory?: boolean;
+        extensions?: string[];
+        title?: string;
+    }) {
+        const properties = ['openFile'];
+        openDirectory && properties.push('openDirectory');
+        title = title ?? `${openDirectory ? '选择文件夹' : '选择文件'}`;
+        const res = await dialog.showOpenDialog({
+            //@ts-ignore
+            properties: properties,
+            message: title,
+            title,
+            buttonLabel: '导出到此',
             filters: [{ name: '所有文件', extensions }]
         });
         return res.filePaths;
@@ -213,11 +248,18 @@ class Action {
     }
 
     /**
-     * 分享用户应用
+     * 导出到本地
      */
 
     static async shareUserAppToPlaza(appId: string) {
-        return UserAppManage.shareUserAppToPlaza(appId);
+        const filePath = await this.selectFileOrFolder1({
+            openDirectory: true,
+            title: '选择导出到的文件夹'
+        });
+        if (!filePath || filePath.length === 0) {
+            return;
+        }
+        return UserAppManage.shareUserAppToPlaza(appId, filePath[0]);
     }
 
     /**

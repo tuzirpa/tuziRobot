@@ -10,8 +10,8 @@ export type UserAppInfo = Readonly<UserApp> & { deleting?: boolean; description:
  */
 export async function shareUserAppToPlaza(app: UserAppInfo) {
     console.log('shareUserAppToPlaza', app);
-    await Action.shareUserAppToPlaza(app.id);
-    ElMessage.success('发布成功');
+    const fileUrl = await Action.shareUserAppToPlaza(app.id);
+    ElMessage.success(`导出成功,路径：${fileUrl}`);
 }
 
 /**

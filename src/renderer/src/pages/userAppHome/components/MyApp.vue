@@ -1,10 +1,10 @@
 <script setup lang="tsx">
-import { Share } from '@element-plus/icons-vue';
+import { Share, Upload } from '@element-plus/icons-vue';
 import { showContextMenu } from '@renderer/components/contextmenu/ContextMenuPlugin';
 import { Action } from '@renderer/lib/action';
 import { ElButton, ElInput, ElMessage, ElMessageBox } from 'element-plus';
 import { computed, ref, watch } from "vue";
-import { UserAppInfo } from './MyApp';
+import { shareUserAppToPlaza, UserAppInfo } from './MyApp';
 
 const emit = defineEmits<{
     (e: 'toAppPlazas'): void
@@ -54,20 +54,20 @@ function showContextMenuByApp(event: MouseEvent, app: UserAppInfo) {
             icon: 'icon-yunxing',
             shortcut: ''
         },
-        /*
-         {
-            label: '发布到示例广场',
+        /**/
+        {
+            label: '导出应用',
             onClick: () => {
-                if (!loginUserInfo.value.isAdmin) {
-                    ElMessage.error('只有管理员才能分享应用');
-                    return;
-                }
+                // if (!loginUserInfo.value.isAdmin) {
+                //     ElMessage.error('只有管理员才能分享应用');
+                //     return;
+                // }
                 shareUserAppToPlaza(app);
             },
             icon: <el-icon><Upload /></el-icon>,
             shortcut: ''
         },
-        */
+
         {
             label: '分享',
             onClick: async () => {

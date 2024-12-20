@@ -44,10 +44,10 @@ if (!gotTheLock) {
 }
 function start() {
     MethodsUtils.getStaticMethods(Action).forEach((item: any) => {
-        const { name, method } = item;
+        const { name, method }: { name: string; method: Function } = item;
         ipcMain.handle(name, async (_e, ...args) => {
             try {
-                const result = await method(...args);
+                const result = await method.call(Action, ...args);
                 if (result) {
                     return { error: false, data: JSON.parse(JSON.stringify(result)) };
                 }
