@@ -1,3 +1,16 @@
+type UserApp = {
+    name: string;
+    description: string;
+    version: string;
+    author: string;
+    flows: {
+        appDir: string;
+        filePath: string;
+        name: string;
+        aliasName?: string;
+    }[];
+};
+
 /**
  * 元素库
  */
@@ -156,6 +169,26 @@ export interface AddConfig<T> {
         label: string;
         value: string;
     }[];
+    /**
+     * 如果options为空是，则可以通过此方法获取
+     * @returns 选项列表
+     */
+    getOptions?:
+        | string
+        | ((
+              directive: DirectiveTree,
+              appInfo: UserApp
+          ) =>
+              | {
+                    label: string;
+                    value: string;
+                }[]
+              | Promise<
+                    {
+                        label: string;
+                        value: string;
+                    }[]
+                >);
     /**
      * 是否多选
      * type为select时生效

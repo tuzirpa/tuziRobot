@@ -40,6 +40,8 @@ async function getAppDetail() {
     const res = await Action.getUserApp(id);
     userAppDetail.value = res;
 
+    curUserApp.value = userAppDetail.value;
+
     // 开始监听运行日志, 销毁后停止监听
     onUnmounted(startRunLogs(), instance);
 
@@ -82,10 +84,10 @@ async function init() {
     console.log(curWorkStatus.value, 'workStatus');
 
     await getAppDetail();
-    //全局变量暴露
-    if (userAppDetail.value) {
-        curUserApp.value = userAppDetail.value;
-    }
+    // //全局变量暴露
+    // if (userAppDetail.value) {
+    //     curUserApp.value = userAppDetail.value;
+    // }
 
     loading.value = false;
 }

@@ -6,6 +6,7 @@ import InputValueVarVariable from './InputValueVarVariable.vue';
 import { nextTick, ref } from 'vue';
 import { Action } from '@renderer/lib/action'
 import { ElInput, ElSelect, ElTooltip } from 'element-plus';
+import { curUserApp } from '../indexvue';
 
 // 添加逻辑
 const props = defineProps<{
@@ -63,6 +64,19 @@ nextTick(async () => {
 
                 if (input.addConfig.isAdvanced) {
                     advancedNum.value++;
+                }
+                if (input.addConfig.type === 'select') {
+
+                    if (input.addConfig.getOptions) {
+                        (async () => {
+                            const directive = _directive.value;
+                            const appInfo = curUserApp.value;
+                            console.log('222', input.addConfig.getOptions, appInfo);
+                            const fun = new Function(`const fun = ${input.addConfig.getOptions};return fun.apply(null, arguments)`);
+                            input.addConfig.options = await fun(directive, appInfo);
+                        })();
+                    }
+
                 }
             }
         }
