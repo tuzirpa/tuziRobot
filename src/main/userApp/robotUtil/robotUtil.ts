@@ -36,7 +36,7 @@ function forRobotUtil(obj: any) {
                         return result;
                     } catch (error: any) {
                         // olog(error);
-                        console.error(error);
+                        console.error(error.stack);
                         if (blockInfo.failureStrategy === 'terminate') {
                             console.error(
                                 `执行指令 ${blockInfo.directiveDisplayName} 异常,终止流程`

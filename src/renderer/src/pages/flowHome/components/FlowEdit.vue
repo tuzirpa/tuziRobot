@@ -59,14 +59,11 @@ const files = computed<OpenFile[]>(() => {
     return props.flows.map((item) => {
         const blocks = item.blocks.map((block) => {
             return {
-                ...block,
-                open: false,
-                hide: false,
                 pdLvn: 0,
-                isFold: false,
                 id: uuid(),
                 foldDesc: '',
-                commentShow: ''
+                commentShow: '',
+                ...block
             };
         });
         return {
@@ -165,21 +162,23 @@ const blocks = computed(() => {
         curOpenFile.value.blocks[index].pdLvn = pdLvn;
         //是否有折叠
         curOpenFile.value.blocks[index].isFold = false;
-        /**/ if (block.isElse) {
+        /* if (block.isElse) {
             pdLvn--;
             pdLvn = pdLvn < 0 ? 0 : pdLvn;
             curOpenFile.value.blocks[index].pdLvn = pdLvn;
             curOpenFile.value.blocks[index].isFold = true;
             curOpenFile.value.blocks[index].open = true;
             pdLvn++;
-        } else if (block.isControl) {
-            curOpenFile.value.blocks[index].isFold = true;
-            curOpenFile.value.blocks[index].open = true;
-            pdLvn++;
-        } else if (block.isControlEnd) {
+        }else */if (block.isControlEnd) {
             pdLvn--;
             pdLvn = pdLvn < 0 ? 0 : pdLvn;
             curOpenFile.value.blocks[index].pdLvn = pdLvn;
+        }
+
+        if(block.isControl){
+            curOpenFile.value.blocks[index].isFold = true;
+            curOpenFile.value.blocks[index].open = curOpenFile.value.blocks[index].open === undefined?true:curOpenFile.value.blocks[index].open ;
+            pdLvn++;
         }
     });
 
@@ -1094,7 +1093,12 @@ defineExpose({
                     </template>
                     <div v-show="blocks.length === 0"
                         class="flex flex-1 justify-center items-center text-center text-gray-400">
-                        从左侧拖入指令，像搭积木一样完成自动化流程。
+                        从左侧拖入指令或
+                        <span class="text-blue-500 cursor-pointer hover:underline" 
+                              @click="addBlockDialogVisible = true">
+                          点我添加
+                        </span>
+                        ，像搭积木一样完成自动化流程。
                     </div>
                 </div>
 

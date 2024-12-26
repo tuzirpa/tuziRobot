@@ -369,9 +369,9 @@ export class UserAppManage {
         flowSave.blocks = flow.blocks;
         flowSave.blocks.forEach((block) => {
             // delete block.pdLvn;
-            delete block.isFold;
-            delete block.open;
-            delete block.hide;
+            // delete block.isFold;
+            // delete block.open;
+            // delete block.hide;
             for (const key in block.inputs) {
                 if (Object.prototype.hasOwnProperty.call(block.inputs, key)) {
                     const input = block.inputs[key];

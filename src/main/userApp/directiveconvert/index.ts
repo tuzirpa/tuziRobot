@@ -36,25 +36,20 @@ const defaultToCode = (directive: DirectiveTree, blockCode: string) => {
         params = paramArr.join('');
     }
 
-    let returnVal = '';
+    let thenRes = '';
     const outputKeys = Object.keys(directive.outputs);
     if (outputKeys.length === 0) {
-        returnVal = '';
+        thenRes = '';
     } else {
-        const paramArr: string[] = [];
-        paramArr.push('{');
         const outputValueArr: string[] = [];
         outputKeys.forEach((key) => {
             const output = directive.outputs[key];
-            outputValueArr.push(`"${key}":${output.name}`);
+            outputValueArr.push(`${output.name}`);
+            thenRes += `${output.name} = res.${key}; `;
         });
-        paramArr.push(outputValueArr.join(','));
-        paramArr.push('}');
-        returnVal = paramArr.join('');
     }
-    const returnString = `var ${returnVal} = `;
     const key = directive.key || directive.name;
-    jsCode = `${returnVal ? returnString : ''}await robotUtil.${key}(${params},${blockCode});`;
+    jsCode = `await robotUtil.${key}(${params},${blockCode}).then(res=>{ ${thenRes}});`;
     return jsCode;
 };
 
