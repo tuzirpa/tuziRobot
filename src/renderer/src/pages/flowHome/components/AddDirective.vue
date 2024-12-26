@@ -55,7 +55,9 @@ nextTick(async () => {
                 const input = _directive.value.inputs[key];
                 //自动补全处理
                 if (!input.value && input.addConfig.autoComplete) {
-                    const variable = _variables.value.find((item) => item.type === input.addConfig.filtersType);
+                    //获取前置变量列表 在变量之后的不能作为输入然后倒序查找 实现最近使用变量优先
+                    const beforeVariables = _variables.value.filter(item => item.before).reverse();
+                    const variable = beforeVariables.find((item) => item.type === input.addConfig.filtersType);
                     input.value = variable?.name;
                 } else {
                     input.value = input.value || input.addConfig.defaultValue;
@@ -71,9 +73,14 @@ nextTick(async () => {
                         (async () => {
                             const directive = _directive.value;
                             const appInfo = curUserApp.value;
-                            console.log('222', input.addConfig.getOptions, appInfo);
+                            const optionTuils = {
+                                getUserApps: async () => {
+                                    const userApps = await Action.getUserApps();
+                                    return userApps;
+                                }
+                            };
                             const fun = new Function(`const fun = ${input.addConfig.getOptions};return fun.apply(null, arguments)`);
-                            input.addConfig.options = await fun(directive, appInfo);
+                            input.addConfig.options = await fun(directive, appInfo, optionTuils);
                         })();
                     }
 

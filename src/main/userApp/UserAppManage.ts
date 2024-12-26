@@ -1,17 +1,17 @@
-import fs from 'fs';
-import UserApp, { AppType } from './UserApp';
 import { uuid } from '@shared/Utils';
-import Flow from './Flow';
-import { createTempFile, unzip, zip } from '../utils/zipUtils';
-import path, { join } from 'path';
-import { uploadFileToQiniu } from '../utils/qiniuUtils';
-import { appPlazaAdd, getDownloadUrl } from '../api/appplaza';
-import { downloadFileWithResume } from '../utils/download';
-import { WorkStatus } from './WorkStatusConf';
-import { AppVariable, DirectiveTree, ElementLibrary } from './types';
-import { convertDirective } from './directiveconvert';
+import { shell } from 'electron';
+import fs from 'fs';
 import http from 'http';
+import path, { join } from 'path';
+import { getDownloadUrl } from '../api/appplaza';
 import { fileDecipher, fileEncipher } from '../utils/FileEncipherUtils';
+import { downloadFileWithResume } from '../utils/download';
+import { createTempFile, readZipFile, unzip, zip } from '../utils/zipUtils';
+import Flow from './Flow';
+import UserApp, { AppType } from './UserApp';
+import { WorkStatus } from './WorkStatusConf';
+import { convertDirective } from './directiveconvert';
+import { AppVariable, DirectiveTree, ElementLibrary } from './types';
 
 /**
  * 广场的应用
@@ -185,26 +185,32 @@ export class UserAppManage {
         //创建本地应用 并设置成导入的应用
         const tempFile = createTempFile('userApp', '.zip');
         await fileDecipher(zipPath, tempFile, '123456');
+        console.log('tempFile', tempFile);
+        const appPackage = readZipFile(tempFile, 'package.json');
+        const app = JSON.parse(appPackage);
+        const userApp = this.userApps
+            .filter((item) => item.type === 'into')
+            .find((item) => app.id === item.sourceAppId);
+        if (userApp) {
+            throw new Error('已导入过此应用，请勿重复导入');
+        }
 
-        unzip(tempFile, 'E:/temp111');
+        const id = uuid();
+        const newUserApp = new UserApp(`app_${Date.now()}_${id}`);
 
-        // // userApp.type = 'into';
-        // // userApp.intoId = app.id;
-        // userApp.name = app.name;
-        // userApp.description = app.description;
-        // userApp.version = app.version;
-        // //下载流程文件
-        // //获取下载地址
-        // const fileUrl = await getDownloadUrl(app.id);
-        // console.log(fileUrl, 'fileUrl');
+        await unzip(tempFile, path.join(UserApp.userAppLocalDir, `${newUserApp.id}`));
 
-        // const zipPath = join(userApp.appDir, `dev.zip`);
-        // await downloadFileWithResume(fileUrl, zipPath);
-        // //解压流程文件
-        // await unzip(zipPath, userApp.appDir);
-        // //删除压缩文件
-        // fs.unlinkSync(zipPath);
-        //保存应用
+        newUserApp.name = app.name;
+        newUserApp.type = 'into';
+        newUserApp.sourceAppId = app.id;
+
+        this.userApps.push(newUserApp);
+
+        // 加载flows
+        newUserApp.initFlows();
+        newUserApp.generateMainJs();
+        newUserApp.save();
+        console.log(app, 'app');
 
         return;
     }
@@ -223,21 +229,15 @@ export class UserAppManage {
             // const zipPath = join(userApp.appDir, `${userApp.id}.zip`);
             const zipPath = createTempFile('userApp', '.zip');
             zip(zipPath, userApp.appDir, (filename) => {
-                const includeDir = [
-                    'dev',
-                    'elementLibrary',
-                    'main.js',
-                    'tuziAppData.json',
-                    'package.json'
-                ];
-
-                if (includeDir.find((item) => filename.startsWith(item))) {
-                    return true;
+                //过滤掉不需要的文件
+                const exts = ['userData', '.tuzi', 'logs'];
+                if (exts.some((ext) => filename.startsWith(ext))) {
+                    return false;
                 }
-                return false;
+                return true;
             });
             await fileEncipher(zipPath, path.join(outFilePath, `${userApp.name}.tuzi`), '123456');
-
+            shell.openExternal(outFilePath);
             // TODO: 上传文件到服务器
             // const fileUrl = await uploadFileToQiniu(zipPath);
             // //删除压缩文件

@@ -25,7 +25,6 @@ import * as lzString from 'lz-string';
 import tuziChromeEvbitonment from '../nodeEnvironment/TuziChromeEvbitonment';
 import type { AppType } from '../userApp/UserApp';
 import { browserManage } from '../browser/BrowserManage';
-import { title } from 'process';
 
 class Action {
     static async importApp() {

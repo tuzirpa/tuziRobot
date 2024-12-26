@@ -1,5 +1,6 @@
 type UserApp = {
     name: string;
+    id: string;
     description: string;
     version: string;
     author: string;
@@ -177,7 +178,8 @@ export interface AddConfig<T> {
         | string
         | ((
               directive: DirectiveTree,
-              appInfo: UserApp
+              appInfo: UserApp,
+              getOptionUtils: { getUserApps: () => Promise<UserApp[]> }
           ) =>
               | {
                     label: string;

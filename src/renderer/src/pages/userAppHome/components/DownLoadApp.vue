@@ -83,7 +83,7 @@ async function intoAppToLocal() {
 async function fileImport() {
     const appInfo = await Action.importApp();
     console.log(appInfo);
-
+    getUserApps();
 }
 
 </script>

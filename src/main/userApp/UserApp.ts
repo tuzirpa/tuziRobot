@@ -129,6 +129,7 @@ export default class UserApp {
     id: string;
     version: string = '1.0.0';
     type: AppType = 'myCreate';
+    sourceAppId: string = '';
     main: string = 'main.js';
     author: string = '';
     license: string = '';
@@ -197,6 +198,7 @@ export default class UserApp {
         this.packageJson.name = this.name;
         this.packageJson.description = this.description;
         this.packageJson.type = this.type;
+        this.packageJson.sourceAppId = this.sourceAppId;
         fs.writeFileSync(
             path.join(this.appDir, 'package.json'),
             JSON.stringify(this.packageJson, null, 2)
@@ -285,7 +287,9 @@ export default class UserApp {
         mainJsContent.push(
             `const logsDir = join(__dirname,'logs');if(!fs.existsSync(logsDir)){fs.mkdirSync(logsDir)}`
         );
-        mainJsContent.push(`log.setLogFile(join(logsDir,process.env.RUN_LOG_ID + '.log'));`);
+        mainJsContent.push(
+            `log.setLogFile(join(logsDir,process.env.RUN_LOG_ID??Date.now() + '.log'));`
+        );
         mainJsContent.push(`// child.js
             process.on('uncaughtException', (err) => {
                 console.error(err.stack);

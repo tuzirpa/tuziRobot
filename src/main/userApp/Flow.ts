@@ -79,18 +79,18 @@ export default class Flow {
     //获取流程所有定义的变量
     getVariables() {
         const variableSet = new Set<string>();
-        
-        this.blocks.forEach(block => {
+
+        this.blocks.forEach((block) => {
             // 从指令的 outputs 中提取变量
             if (block.outputs) {
-                Object.values(block.outputs).forEach(output => {
+                Object.values(block.outputs).forEach((output) => {
                     if (output.name && typeof output.name === 'string') {
                         variableSet.add(output.name);
                     }
                 });
             }
         });
-        
+
         return Array.from(variableSet);
     }
 
@@ -103,14 +103,14 @@ export default class Flow {
         content.push(`let robotUtil = robotUtilAll.default;`);
         content.push(`const generateBlock = robotUtilAll.generateBlock;`);
         content.push(`const fatalError = robotUtilAll.fatalError;`);
-        
+
         // 添加变量声明
         const variables = this.getVariables();
         if (variables.length > 0) {
             content.push('//变量声明');
             content.push(`let ${variables.join(', ')};`);
         }
-        
+
         content.push(
             `module.exports = async function (${this.isMainFlow ? '' : '{ _callParams }'}) {`
         );
