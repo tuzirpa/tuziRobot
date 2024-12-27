@@ -27,6 +27,9 @@ import type { AppType } from '../userApp/UserApp';
 import { browserManage } from '../browser/BrowserManage';
 
 class Action {
+    static openLogsDir(appId: string) {
+        return UserAppManage.openLogsDir(appId);
+    }
     static async importApp() {
         const filePath = await this.selectFileOrFolder();
         return UserAppManage.importApp(filePath[0]);
@@ -209,7 +212,7 @@ class Action {
      * 获取用户应用列表
      * @returns 用户应用列表
      */
-    static async getUserApps(type: AppType = 'myCreate') {
+    static async getUserApps(type?: AppType) {
         return UserAppManage.getUserApps(type);
     }
 

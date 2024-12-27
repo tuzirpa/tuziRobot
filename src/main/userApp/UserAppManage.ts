@@ -27,6 +27,16 @@ export type AppPlaza = {
 };
 
 export class UserAppManage {
+    openLogsDir(appId: string) {
+        const userApp = this.findUserApp(appId);
+        if (userApp.lastRunLogId) {
+            const logsDir = path.join(userApp.appDir, 'logs', `${userApp.lastRunLogId}.log`);
+            shell.openExternal(logsDir);
+        } else {
+            const logsDir = path.join(userApp.appDir, 'logs');
+            shell.openExternal(logsDir);
+        }
+    }
     async executeStep(_appId: string, step: DirectiveTree, index: number) {
         // const userApp = this.findUserApp(appId);
         //动态运行一般只在编写流程时使用，所以这里暂时不做错误处理，直接忽略错误，后续再考虑处理方式
@@ -179,7 +189,7 @@ export class UserAppManage {
     }
 
     /**
-     * 导入广场应用到本地
+     * 导入应用
      */
     async importApp(zipPath: string) {
         //创建本地应用 并设置成导入的应用
@@ -199,6 +209,7 @@ export class UserAppManage {
         const newUserApp = new UserApp(`app_${Date.now()}_${id}`);
 
         await unzip(tempFile, path.join(UserApp.userAppLocalDir, `${newUserApp.id}`));
+        fs.unlinkSync(tempFile);
 
         newUserApp.name = app.name;
         newUserApp.type = 'into';
@@ -284,7 +295,7 @@ export class UserAppManage {
         const userApp = this.findUserApp(appId);
         return userApp.devGetProperties(objectId);
     }
-    devStop(appId: string) {
+    async devStop(appId: string) {
         const userApp = this.findUserApp(appId);
         userApp.devStop();
     }
@@ -302,7 +313,7 @@ export class UserAppManage {
     }
     userAppRun(appId: string) {
         const userApp = this.findUserApp(appId);
-        userApp.run();
+        return userApp.run();
     }
     installPackage(appId: string) {
         const userApp = this.findUserApp(appId);
@@ -343,11 +354,11 @@ export class UserAppManage {
         return userApp;
     }
 
-    getUserApps(type: AppType): UserApp[] {
-        if (type === 'into') {
+    getUserApps(type?: AppType): UserApp[] {
+        if (type) {
             return this.userApps.filter((app) => app.type === type);
         }
-        return this.userApps.filter((app) => app.type === type || !app.type);
+        return this.userApps;
     }
 
     newUserApp(name: string) {

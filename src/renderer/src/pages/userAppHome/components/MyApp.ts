@@ -1,8 +1,5 @@
 import { Action } from '@renderer/lib/action';
 import { ElMessage } from 'element-plus';
-import type UserApp from 'src/main/userApp/UserApp';
-
-export type UserAppInfo = Readonly<UserApp> & { deleting?: boolean; description: string };
 
 /**
  * 发布到应用示例广场

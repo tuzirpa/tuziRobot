@@ -3,10 +3,16 @@ import { RouterView } from 'vue-router';
 import Update from './components/Update.vue';
 import AppStatus from './components/AppStatus.vue';
 import { Action } from '@renderer/lib/action';
+import { getUserApps } from './store/commonStore';
 // 添加逻辑
 
 function init() {
     Action.init();
+    // 这边本地全局数据初始化
+    getUserApps();
+    window.electron.ipcRenderer.on('userApps_update', () => {
+        getUserApps();
+    });
 }
 init();
 

@@ -140,6 +140,7 @@ export default class UserApp {
     appRobotUtilDir: string = '';
     packageJson: any = {};
     lastRunLogId!: string;
+    status: 'running' | 'pause' | 'stop' = 'stop';
 
     flows: Flow[] = [];
     #devNodeJs: DevNodeJs | null = null;
@@ -288,7 +289,7 @@ export default class UserApp {
             `const logsDir = join(__dirname,'logs');if(!fs.existsSync(logsDir)){fs.mkdirSync(logsDir)}`
         );
         mainJsContent.push(
-            `log.setLogFile(join(logsDir,process.env.RUN_LOG_ID??Date.now() + '.log'));`
+            `log.setLogFile(join(logsDir,(process.env.RUN_LOG_ID??Date.now()) + '.log'));`
         );
         mainJsContent.push(`// child.js
             process.on('uncaughtException', (err) => {
@@ -355,7 +356,7 @@ export default class UserApp {
         // 加载flows
         this.initFlows();
         this.generateMainJs();
-        this.generatePackageJson();
+
         return this.workStatus;
     }
 
@@ -479,6 +480,11 @@ export default class UserApp {
         return this.start();
     }
 
+    stop() {
+        // 停止
+        return this.devStop();
+    }
+
     async devStepOver() {
         if (this.#devNodeJs) {
             this.#devNodeJs.stepOver();
@@ -489,7 +495,7 @@ export default class UserApp {
             this.#devNodeJs.resume();
         }
     }
-    async devStop() {
+    devStop() {
         if (!this.#devPrecess) {
             return;
         }
@@ -503,6 +509,7 @@ export default class UserApp {
                     setTimeout(resolve, 100);
                 });
                 const exitRes = this.#devPrecess && this.#devPrecess.kill();
+                WindowManage.mainWindow.webContents.send('userApps_update');
                 console.log('退出结果', exitRes);
             });
         }
@@ -531,8 +538,12 @@ export default class UserApp {
     #lastLogsOutIndex: number = 0;
     #logsOutSt: string | number | NodeJS.Timeout | undefined;
 
-    _sendRunLogs(data: LogMessage | LogMessage[]) {
-        WindowManage.mainWindow.webContents.send('run-logs', data);
+    _sendRunLogs(data: LogMessage[]) {
+        const dataTemp = data.map((item) => {
+            return { ...item, appId: this.id };
+        });
+        WindowManage.mainWindow.webContents.send('run-logs', dataTemp);
+        WindowManage.mainWindow.webContents.send('run-logs-' + this.id, dataTemp);
     }
 
     sendRunLogs(data: LogMessage | LogMessage[]) {
@@ -548,13 +559,20 @@ export default class UserApp {
     }
 
     async start(breakpoints: IBreakpoint[] = [], isDebug: boolean = false) {
+        if (this.status === 'running') {
+            throw new Error('流程正在运行，请先停止流程，后再启动');
+        }
         this.#stepWindow = this.#stepWindow || new StepWindow(this.id);
         // this.#stepWindow.once('show', async () => {});
         if (!this.#stepWindow?.isVisible()) this.#stepWindow?.show();
         await sleep(1000);
         this.startRun(breakpoints, isDebug);
+        return this;
     }
     startRun(breakpoints: IBreakpoint[] = [], isDebug: boolean = false) {
+        this.status = 'running';
+        WindowManage.mainWindow.webContents.send('userApps_update');
+
         // let breakpoints: IBreakpoint[] = [];
         // breakpoints = this.breakpoints;
         this.sendRunLogs({
@@ -625,6 +643,9 @@ export default class UserApp {
             }
         });
         this.#devPrecess.on('exit', (code) => {
+            this.status = 'stop';
+            WindowManage.mainWindow.webContents.send('userApps_update');
+
             console.log(`子进程已退出，退出码 ${code}`);
             if (this.#devNodeJs) {
                 this.#devNodeJs.close();
@@ -645,6 +666,7 @@ export default class UserApp {
                 } as any
             });
             WindowManage.mainWindow.webContents.send('devRunEnd');
+
             this.#devPrecess = null;
             this.#stepWindow?.hide();
 

@@ -135,7 +135,7 @@ Date.prototype.Format = function (fmt: string) {
         'm+': this.getMinutes(), //分
         's+': this.getSeconds(), //秒
         'q+': Math.floor((this.getMonth() + 3) / 3), //季度
-        S: this.getMilliseconds() //毫秒
+        S: this.getMilliseconds().toString().padStart(3, '0') //毫秒
     };
     if (/(y+)/.test(fmt))
         fmt = fmt.replace(RegExp.$1, (this.getFullYear() + '').substr(4 - RegExp.$1.length));
@@ -171,7 +171,7 @@ export function setLogFile(filePath: string) {
         const levelStr = levelMap[level];
         const content =
             // @ts-ignore
-            `[${levelStr}] [${_block.flowName}:(行: ${_block.blockLine})] [${new Date().Format('yyyy-MM-dd hh:mm:ss.S')}]:` +
+            `[${levelStr}] [${_block.flowAliasName}:(行: ${_block.blockLine})] [${new Date().Format('yyyy-MM-dd hh:mm:ss.S')}]:` +
             message;
         logFileWriteStream.write(content + '\n');
         if (process.env.TUZI_ENV === 'app') {

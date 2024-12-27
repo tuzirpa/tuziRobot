@@ -91,6 +91,7 @@ forRobotUtil(robotUtil);
 export const generateBlock = (
     blockLine,
     flowName,
+    flowAliasName,
     directiveName,
     directiveDisplayName,
     failureStrategy,
@@ -100,6 +101,7 @@ export const generateBlock = (
     return {
         blockLine,
         flowName,
+        flowAliasName,
         directiveName,
         directiveDisplayName,
         failureStrategy,
@@ -122,6 +124,7 @@ export const fatalError = (error: any, fileName: string) => {
         globalThis._block = {
             blockLine: -1,
             flowName: '未知流程',
+            flowAliasName: '未知流程',
             directiveName: '',
             directiveDisplayName: '',
             failureStrategy: 'terminate',

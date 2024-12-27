@@ -4,6 +4,7 @@ type UserApp = {
     description: string;
     version: string;
     author: string;
+    type: 'into' | 'myCreate';
     flows: {
         appDir: string;
         filePath: string;
@@ -417,6 +418,7 @@ export interface DirectiveTree {
 export interface Block {
     blockLine: number;
     flowName: string;
+    flowAliasName: string;
     directiveName: string;
     directiveDisplayName: string;
     failureStrategy: 'terminate' | 'ignore' | 'retry';

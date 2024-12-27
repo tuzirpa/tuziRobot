@@ -175,9 +175,9 @@ const blocks = computed(() => {
             curOpenFile.value.blocks[index].pdLvn = pdLvn;
         }
 
-        if(block.isControl){
+        if (block.isControl) {
             curOpenFile.value.blocks[index].isFold = true;
-            curOpenFile.value.blocks[index].open = curOpenFile.value.blocks[index].open === undefined?true:curOpenFile.value.blocks[index].open ;
+            curOpenFile.value.blocks[index].open = curOpenFile.value.blocks[index].open === undefined ? true : curOpenFile.value.blocks[index].open;
             pdLvn++;
         }
     });
@@ -949,6 +949,10 @@ function addBlockDialogOpened() {
     window.document.querySelector('.addBlockDialog input').focus()
 }
 
+function filterMethod(node: any, key: string) {
+    return !!node.value?.displayName.toLocaleLowerCase().includes(key.toLocaleLowerCase());
+}
+
 onMounted(() => {
     initHandleWheel();
     checkError(props.appInfo.id);
@@ -1094,9 +1098,8 @@ defineExpose({
                     <div v-show="blocks.length === 0"
                         class="flex flex-1 justify-center items-center text-center text-gray-400">
                         从左侧拖入指令或
-                        <span class="text-blue-500 cursor-pointer hover:underline" 
-                              @click="addBlockDialogVisible = true">
-                          点我添加
+                        <span class="text-blue-500 cursor-pointer hover:underline" @click="addBlockDialogVisible = true">
+                            点我添加
                         </span>
                         ，像搭积木一样完成自动化流程。
                     </div>
@@ -1110,8 +1113,8 @@ defineExpose({
             draggable>
             <div class="flex flex-col">
                 <ElCascader class="addBlockDialog" ref="directiveCascader" v-model="addBlockDirective"
-                    placeholder="选择要添加的指令" @change="addBlockComfig" :options="directivesData" filterable clearable
-                    autofocus />
+                    placeholder="选择要添加的指令" @change="addBlockComfig" :options="directivesData" filterable
+                    :filter-method="filterMethod" clearable autofocus />
             </div>
             <template #footer>
                 <div class="dialog-footer">

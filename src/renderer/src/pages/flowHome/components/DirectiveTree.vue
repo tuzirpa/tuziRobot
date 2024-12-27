@@ -11,6 +11,7 @@ import { useElementSize } from '@vueuse/core';
 import { loginUserInfo } from '@renderer/store/commonStore';
 import { Action } from '@renderer/lib/action';
 import type { SystemDirectiveVersion } from 'src/main/api/systemDirective';
+import { DirectiveData } from './types';
 
 const emit = defineEmits<{
     (e: 'addDirective', data: DirectiveTree): void;
@@ -69,7 +70,9 @@ watch(searchValue, (val) => {
 
 const filterNode = (value: FilterValue, data: TreeNodeData, _node: Node): boolean => {
     if (!value) return true;
-    return data.displayName.includes(value);
+    console.log(data);
+    const displayNameFilter = data.displayName?.toLocaleLowerCase().includes(value.toLocaleLowerCase());
+    return !!displayNameFilter;
 };
 
 function handleDragStart(_event: DragEvent, data: DirectiveTree) {

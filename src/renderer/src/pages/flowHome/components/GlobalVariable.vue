@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import type { AppVariable } from 'src/main/userApp/types';
 import { ElInput, ElButton, ElDialog, ElForm, ElFormItem } from 'element-plus';
-import { MainUserApp } from './types';
+import type { MainUserApp } from './types';
 
 
 // 添加逻辑

@@ -308,9 +308,9 @@ const runLogsColumns: Column<any>[] = [
         width: 50,
         align: 'center',
         cellRenderer: ({ rowIndex }) => (
-            <>
+            <div>
                 {runLogs.value.length - rowIndex}
-            </>
+            </div>
         )
     },
     {
@@ -360,9 +360,9 @@ const runLogsColumns: Column<any>[] = [
         width: 150,
         align: Alignment.CENTER,
         cellRenderer: ({ cellData: time }) => (
-            <>
+            <div>
                 {time}
-            </>
+            </div>
         )
     },
     {
@@ -407,9 +407,9 @@ const runLogsColumns: Column<any>[] = [
             // const slotsDefault = ({ height, width }) => {
 
             // }
-            return (<>
-                {data?.flowName}
-            </>)
+            return (<div>
+                {data?.flowAliasName}
+            </div>)
         }
     },
     {

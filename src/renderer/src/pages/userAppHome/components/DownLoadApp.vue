@@ -1,24 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { Action } from '@renderer/lib/action';
-import type UserApp from 'src/main/userApp/UserApp';
 import { ElButton, ElInput, ElMessage, ElMessageBox } from 'element-plus';
+import { getUserApps, userApps } from "@renderer/store/commonStore";
 
 // 添加逻辑
 
-
-type UserAppInfo = UserApp & { deleting?: boolean };
-const userApps = ref<UserAppInfo[]>([])
-
-// async function newApp() {
-//     getUserApps();
-// }
-
-async function getUserApps() {
-    const apps = await Action.getUserApps('into');
-    userApps.value = apps;
-}
-getUserApps();
 
 function runUserApp(id: string) {
     Action.userAppRun(id);
@@ -86,6 +73,10 @@ async function fileImport() {
     getUserApps();
 }
 
+const showUserApps = computed(() => {
+    return userApps.value.filter((app) => app.type === 'into');
+});
+
 </script>
 
 <template>
@@ -99,7 +90,7 @@ async function fileImport() {
             </div>
         </div>
         <div class="app-list flex flex-col p-2 gap-1">
-            <div class="app-item flex justify-between items-center border p-2 rounded" v-for="(app, index) in userApps"
+            <div class="app-item flex justify-between items-center border p-2 rounded" v-for="(app, index) in showUserApps"
                 :key="index">
                 <div class="app-name">
                     {{ app.name }}

@@ -58,6 +58,7 @@ export async function convertDirective(directive: DirectiveTree, index: number, 
     toCode = toCode || directive.toCode;
     const block: Block = {
         blockLine: index + 1,
+        flowAliasName: flow?.aliasName ?? flow?.name ?? '调试代码',
         flowName: flow?.name ?? '调试代码',
         directiveName: directive.name,
         directiveDisplayName: directive.displayName || directive.name,
@@ -68,13 +69,14 @@ export async function convertDirective(directive: DirectiveTree, index: number, 
     const {
         blockLine,
         flowName,
+        flowAliasName,
         directiveName,
         directiveDisplayName,
         failureStrategy,
         intervalTime,
         retryCount
     } = block;
-    const blockCode = `_block = generateBlock(${blockLine}, "${flowName}", "${directiveName}", "${directiveDisplayName}", "${failureStrategy}", ${intervalTime}, ${retryCount})`;
+    const blockCode = `_block = generateBlock(${blockLine}, "${flowName}", "${flowAliasName}", "${directiveName}", "${directiveDisplayName}", "${failureStrategy}", ${intervalTime}, ${retryCount})`;
 
     // 由于保存代码时不存 inputs的addConfig 和 outputs的typeDetails 字段，所以在这里补全
     //补全 addConfig 字段
