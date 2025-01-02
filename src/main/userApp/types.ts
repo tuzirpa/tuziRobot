@@ -76,7 +76,14 @@ export type DataType =
     | 'number'
     | 'boolean'
     | 'textarea'
+    /**
+     * 数组选择的变量列表 会用 [变量1, 变量2,...] 进行包裹
+     */
     | 'array'
+    /**
+     * 数组选择的变量直接使用
+     */
+    | 'arrayObject'
     | 'variable'
     | 'object';
 
@@ -103,6 +110,9 @@ export interface AppVariable {
      * 输出类型详情
      */
     typeDetails?: OutputTypeDetails[];
+
+    exposed?: boolean;
+    defaultValue?: string;
 }
 
 export interface FlowVariable extends AppVariable {
@@ -400,9 +410,9 @@ export interface DirectiveTree {
     breakpoint?: boolean;
 
     /**
-     * 失败策略    terminate: 终止流程   ignore: 忽略错误   retry: 重试流程
+     * 失败策略    terminate: 终止流程   ignore: 忽略错误   retry: 重试流程   throw: 抛出错误
      */
-    failureStrategy?: 'terminate' | 'ignore' | 'retry';
+    failureStrategy?: 'terminate' | 'ignore' | 'retry' | 'throw';
     /**
      * retry时 重试间隔时间
      */
@@ -421,7 +431,7 @@ export interface Block {
     flowAliasName: string;
     directiveName: string;
     directiveDisplayName: string;
-    failureStrategy: 'terminate' | 'ignore' | 'retry';
+    failureStrategy: 'terminate' | 'ignore' | 'retry'| 'throw';
     intervalTime: number;
     retryCount: number;
 }

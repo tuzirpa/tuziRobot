@@ -39,11 +39,24 @@ export const showContextFlowMenu = (event: MouseEvent, file: OpenFile) => {
                     <CopyDocument />
                 </el-icon>
             ),
-            label: '复制流程名',
+            label: '复制文件名',
             shortcut: '',
             disabled: file.name === 'main.flow',
             onClick: async () => {
                 await navigator.clipboard.writeText(file.name);
+                ElMessage.success('复制成功');
+            }
+        },
+        {
+            icon: (
+                <el-icon>
+                    <CopyDocument />
+                </el-icon>
+            ),
+            label: '复制完整路径文件名',
+            shortcut: '',
+            onClick: async () => {
+                await navigator.clipboard.writeText(file.filePath);
                 ElMessage.success('复制成功');
             }
         },

@@ -23,9 +23,11 @@ const defaultToCode = (directive: DirectiveTree, blockCode: string) => {
             const input = directive.inputs[key];
             let codeValue = '';
             if (input.type === 'variable') {
-                codeValue = input.value;
+                codeValue = input.value === '' ? 'undefined' : input.value;
             } else if (input.type === 'array') {
                 codeValue = `[${input.value}]`;
+            } else if (input.type === 'arrayObject') {
+                codeValue = `${input.value}`;
             } else {
                 codeValue = typeToCode(input);
             }

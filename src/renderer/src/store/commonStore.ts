@@ -7,6 +7,7 @@ export type UserAppInfo = Omit<Readonly<UserApp>, ''> & {
     deleting?: boolean;
     showLogs?: boolean;
     description: string;
+    name: string;
 };
 
 export const loginUserInfo = ref<UserInfo>({

@@ -22,7 +22,7 @@ console.log(_directive.value.inputs);
 
 
 
-_directive.value.failureStrategy = _directive.value.failureStrategy || 'terminate';
+_directive.value.failureStrategy = _directive.value.failureStrategy || 'throw';
 
 const groups = ref([
     { name: '常规', active: false },
@@ -233,7 +233,7 @@ function inputItemFilters(directive: DirectiveTree, inputItem: DirectiveInput) {
                                             :variables="_variables" :inputItem="inputItem">
                                         </InputValueVar>
                                     </div>
-                                    <div class="relative" v-if="inputItem.addConfig.type === 'variable'">
+                                    <div class="relative" v-if="inputItem.type === 'variable' || inputItem.addConfig.type === 'variable'">
                                         <InputValueVarVariable @inputValueChange="inputValueChange"
                                             v-model="inputItem.value" :variables="_variables" :inputItem="inputItem">
                                         </InputValueVarVariable>
@@ -347,6 +347,7 @@ function inputItemFilters(directive: DirectiveTree, inputItem: DirectiveInput) {
                                     <el-option label="终止流程" value="terminate"></el-option>
                                     <el-option label="忽略并继续执行" value="ignore"></el-option>
                                     <el-option label="重试此指令" value="retry"></el-option>
+                                    <el-option label="往上抛出" value="throw"></el-option>
                                 </el-select>
                             </div>
                         </div>

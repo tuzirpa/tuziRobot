@@ -526,6 +526,23 @@ class Action {
     static async useVersionSystemDirective(version: string) {
         return SystemDirectivePackageManage.useVersionSystemDirective(version);
     }
+
+    static async updateAppConfig(appId: string, variables: AppVariable[]) {
+        const app = await this.getUserApp(appId);
+        if (!app) return;
+        
+        // 更新暴露变量的值
+        app.globalVariables = app.globalVariables.map(v => {
+            const updatedVar = variables.find(uv => uv.name === v.name);
+            if (updatedVar && v.exposed) {
+                v.value = updatedVar.value;
+            }
+            return v;
+        });
+        
+        // 保存全局变量
+        await this.saveGlobalVariables(appId, app.globalVariables);
+    }
 }
 
 export default Action;

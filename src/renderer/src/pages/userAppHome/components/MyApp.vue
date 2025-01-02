@@ -1,5 +1,5 @@
 <script setup lang="tsx">
-import { Share, Upload } from '@element-plus/icons-vue';
+import { Share, Upload, Setting } from '@element-plus/icons-vue';
 import { showContextMenu } from '@renderer/components/contextmenu/ContextMenuPlugin';
 import { Action } from '@renderer/lib/action';
 import { ElButton, ElInput, ElMessage, ElMessageBox } from 'element-plus';
@@ -7,6 +7,7 @@ import { computed, ref, watch } from "vue";
 import { shareUserAppToPlaza } from './MyApp';
 import { getUserApps, UserAppInfo, userApps } from '@renderer/store/commonStore';
 import AppLogs from './AppLogs.vue';
+import type { AppVariable } from 'src/main/userApp/types';
 
 const emit = defineEmits<{
     (e: 'toAppPlazas'): void
@@ -84,6 +85,15 @@ function showContextMenuByApp(event: MouseEvent, app: UserAppInfo) {
                 optionAppDialog.value.showShared = true;
             },
             icon: <el-icon><Share /></el-icon>,
+            shortcut: ''
+        },
+
+        {
+            label: '配置',
+            onClick: () => {
+                openConfig(app);
+            },
+            icon: <el-icon><Setting /></el-icon>,
             shortcut: ''
         }
     ]);
@@ -173,6 +183,40 @@ async function openLogsDir(appId: string) {
 const showLogsMask = ref(false);
 const showLogsAppId = ref('');
 
+const configDialogVisible = ref(false);
+const currentAppConfig = ref<{id: string, variables: AppVariable[]}>(); 
+
+async function openConfig(app: UserAppInfo) {
+    // 这边需要获取应用的全局变量
+    await Action.openUserApp(app.id);
+    currentAppConfig.value = {
+        id: app.id,
+        variables: app.globalVariables?.filter((v: AppVariable) => v.exposed) || []
+    };
+    configDialogVisible.value = true;
+}
+
+async function saveConfig() {
+    if (!currentAppConfig.value) return;
+    
+    await Action.updateAppConfig(currentAppConfig.value.id, currentAppConfig.value.variables);
+    configDialogVisible.value = false;
+    ElMessage.success('配置保存成功');
+    getUserApps(); // 刷新应用列表
+}
+
+async function editAppName(app: UserAppInfo) {
+    const res = await ElMessageBox.prompt('请输入应用名称', `修改应用名称`, {
+        inputValue: app.name,
+        confirmButtonText: '确定',
+        cancelButtonText: '取消'
+    });
+    if (res.action === 'confirm') {
+        await Action.updateUserAppName(app.id, res.value);
+        app.name = res.value;
+        ElMessage.success('更改名称成功');
+    }
+}
 
 </script>
 
@@ -224,7 +268,22 @@ const showLogsAppId = ref('');
                         </template>
                         <div class="app-item-content">
                             <div>
-                                <div class="truncate">应用名称：{{ app.name }}</div>
+                                <div class="flex justify-between items-center">
+                                    <div class="flex items-center gap-2">
+                                        <span class="truncate">应用名称：{{ app.name }}</span>
+                                        <el-icon class="text-gray-400 hover:text-gray-800 cursor-pointer" @click.stop="editAppName(app)">
+                                            <EditPen />
+                                        </el-icon>
+                                    </div>
+                                    <el-button v-if="app.globalVariables?.some(v => v.exposed)"
+                                              type="primary" 
+                                              link 
+                                              size="small"
+                                              @click.stop="openConfig(app)">
+                                        <el-icon><Setting /></el-icon>
+                                        配置
+                                    </el-button>
+                                </div>
                                 <div>应用版本：{{ app.version }}</div>
                                 <div>应用作者：{{ app.author }}</div>
                                 <div class="flex justify-between items-center">
@@ -288,6 +347,25 @@ const showLogsAppId = ref('');
                 </template>
             </el-dialog>
         </Teleport>
+
+        <el-dialog v-model="configDialogVisible" title="应用配置" width="600px">
+            <div v-if="currentAppConfig?.variables.length === 0" class="text-center text-gray-400 py-4">
+                暂无可配置的变量，请先在应用编辑页面设置需要暴露的变量
+            </div>
+            <el-form v-else label-width="120px">
+                <el-form-item v-for="variable in currentAppConfig?.variables" 
+                             :key="variable.name"
+                             :label="variable.display || variable.name">
+                    <el-input v-model="variable.value" 
+                             :placeholder="variable.display || '请输入值'"
+                             :type="variable.type === 'number' ? 'number' : 'text'" />
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="configDialogVisible = false">取消</el-button>
+                <el-button type="primary" @click="saveConfig">保存</el-button>
+            </template>
+        </el-dialog>
 
     </div>
 </template>

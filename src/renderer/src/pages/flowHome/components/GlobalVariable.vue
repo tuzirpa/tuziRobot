@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import type { AppVariable } from 'src/main/userApp/types';
 import { ElInput, ElButton, ElDialog, ElForm, ElFormItem } from 'element-plus';
 import type { MainUserApp } from './types';
+import { QuestionFilled } from '@element-plus/icons-vue';
 
 
 // 添加逻辑
@@ -27,7 +28,8 @@ const appGlobalVariables = computed(() => {
             return {
                 name: item.name,
                 value: item.value,
-                type: 'string',
+                type: item.type,
+                exposed: item.exposed,
                 display: item.display
             };
         });
@@ -37,11 +39,11 @@ const appGlobalVariables = computed(() => {
 let editIndex = -1;
 
 function handleClick(row: AppVariable) {
-
     globalVariableForm.value = {
         name: row.name,
         value: row.value,
-        display: row.display ?? ''
+        display: row.display ?? '',
+        exposed: row.exposed ?? false
     };
     const gvarIndex = props.userAppDetail.globalVariables.findIndex(item => item.name === globalVariableForm.value.name);
     editIndex = gvarIndex;
@@ -64,15 +66,16 @@ function addGlobalVariable() {
         gvars[editIndex].name = globalVariableForm.value.name;
         gvars[editIndex].value = globalVariableForm.value.value;
         gvars[editIndex].display = globalVariableForm.value.display;
-        console.log(gvars);
-
+        gvars[editIndex].exposed = globalVariableForm.value.exposed;
+        
         emit('updateGlobalVariable', gvars);
         globalVariableDialogVisible.value = false;
         editIndex = -1;
         globalVariableForm.value = {
             name: '',
             value: '',
-            display: ''
+            display: '',
+            exposed: false
         }
         return;
     }
@@ -80,7 +83,8 @@ function addGlobalVariable() {
         name: globalVariableForm.value.name,
         value: globalVariableForm.value.value,
         type: 'string',
-        display: globalVariableForm.value.display
+        display: globalVariableForm.value.display,
+        exposed: globalVariableForm.value.exposed
     });
     globalVariableDialogVisible.value = false;
     emit('updateGlobalVariable', gvars);
@@ -88,7 +92,8 @@ function addGlobalVariable() {
     globalVariableForm.value = {
         name: '',
         value: '',
-        display: ''
+        display: '',
+        exposed: false
     }
 }
 
@@ -97,7 +102,8 @@ const globalVariableDialogVisible = ref(false);
 const globalVariableForm = ref({
     name: '',
     value: '',
-    display: ''
+    display: '',
+    exposed: false
 });
 
 const globalVariableRules = {
@@ -115,6 +121,16 @@ const globalVariableRules = {
     ]
 };
 
+function handleVariableChange(row: AppVariable) {
+    // 这边要知道是哪个变量被修改了
+    const gvars = props.userAppDetail.globalVariables;
+    const index = gvars.findIndex(item => item.name === row.name);
+    gvars[index].exposed = row.exposed;
+    emit('updateGlobalVariable', gvars);
+}
+
+
+
 </script>
 
 <template>
@@ -130,8 +146,21 @@ const globalVariableRules = {
         <div class="global-variable-list flex-1 flex flex-col gap-1 overflow-auto">
             <el-table :data="appGlobalVariables" :border="true" style="width: 100%">
                 <el-table-column prop="name" label="变量名" show-overflow-tooltip width="80" />
-                <!-- <el-table-column prop="type" label="类型" width="80" /> -->
                 <el-table-column prop="value" label="默认值" show-overflow-tooltip />
+                <el-table-column prop="exposed" label="暴露配置" width="100">
+                    <template #header>
+                        <el-tooltip
+                            content="开启后可在应用列表页面直接配置该变量"
+                            placement="top"
+                            effect="dark"
+                        >
+                            <span>暴露配置 <el-icon><QuestionFilled /></el-icon></span>
+                        </el-tooltip>
+                    </template>
+                    <template #default="scope">
+                        <el-switch v-model="scope.row.exposed" @change="handleVariableChange(scope.row)" />
+                    </template>
+                </el-table-column>
                 <el-table-column fixed="right" label="操作" min-width="100">
                     <template #default="scope">
                         <el-button link type="primary" size="small" @click="handleClick(scope.row)">
@@ -157,6 +186,18 @@ const globalVariableRules = {
                     </ElFormItem>
                     <ElFormItem label="注释" prop="display">
                         <ElInput v-model="globalVariableForm.display" placeholder="请输入全局变量注释"></ElInput>
+                    </ElFormItem>
+                    <ElFormItem label="暴露配置">
+                        <div class="flex items-center gap-2">
+                            <el-switch v-model="globalVariableForm.exposed" />
+                            <el-tooltip
+                                content="开启后可在应用列表页面直接配置该变量"
+                                placement="top"
+                                effect="dark"
+                            >
+                                <el-icon class="text-gray-400"><QuestionFilled /></el-icon>
+                            </el-tooltip>
+                        </div>
                     </ElFormItem>
                 </ElForm>
             </div>

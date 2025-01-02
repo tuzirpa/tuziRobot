@@ -24,6 +24,7 @@ import GlobalVariable from './components/GlobalVariable.vue';
 import type { AppVariable } from 'src/main/userApp/types';
 import { addElementLibrary, elementLibraryEditConfirm, propertyTabList, propertyTabsActiveName } from './propertyTabs';
 import PropertyTabs from './components/PropertyTabs.vue';
+import { getUserApps } from '@renderer/store/commonStore';
 
 
 const route = useRoute();
@@ -461,7 +462,7 @@ async function handleFlowContextMenu(e: MouseEvent, flow: Flow, _index: number) 
     showContextMenu(e, [
         {
             icon: <el-icon><CopyDocument /></el-icon>,
-            label: '复制流程名',
+            label: '复制文件名',
             shortcut: '',
             disabled: flow.name === 'main.flow',
             onClick: async () => {
@@ -522,11 +523,14 @@ async function handleFlowContextMenu(e: MouseEvent, flow: Flow, _index: number) 
     ])
 }
 
-function saveGlobalVariable(gvars: AppVariable[]) {
+async function saveGlobalVariable(gvars: AppVariable[]) {
+    
     console.log(gvars, 'globalVariableData');
     if (userAppDetail.value?.id) {
         userAppDetail.value.globalVariables = gvars;
-        Action.saveGlobalVariables(userAppDetail.value.id, gvars);
+        await Action.saveGlobalVariables(userAppDetail.value.id, gvars);
+        ElMessage.success('保存成功');
+        getUserApps();
     }
 }
 
