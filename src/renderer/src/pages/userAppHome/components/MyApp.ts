@@ -1,4 +1,5 @@
 import { Action } from '@renderer/lib/action';
+import { UserAppInfo } from '@renderer/store/commonStore';
 import { ElMessage } from 'element-plus';
 
 /**

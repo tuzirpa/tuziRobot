@@ -125,7 +125,7 @@ export class UserAppManage {
     }
 
     /**
-     * 扫描本地应用
+     * 检查错误
      */
     lintError(appId: string) {
         const userApp = this.findUserApp(appId);

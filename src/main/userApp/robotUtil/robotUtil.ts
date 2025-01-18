@@ -1,6 +1,6 @@
-import type { Block } from '../types';
-import { olog, sendLog } from './commonUtil';
 import fs from 'fs';
+import type { Block } from '../types';
+import { sendLog } from './commonUtil';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

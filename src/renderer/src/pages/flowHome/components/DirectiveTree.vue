@@ -1,17 +1,16 @@
 <script setup lang="tsx">
 import BtnTip from '@renderer/components/BtnTip.vue';
-import { ElButton, ElDialog, ElInput, ElMessage, ElPopover, ElTree } from 'element-plus';
-import { ref, watch } from 'vue';
-import type { DirectiveTree } from 'src/main/userApp/types';
-import { dragData } from '../dragVar';
-import { useDirective, reloadDirective, directiveLoading } from '../directive';
-import { FilterValue, TreeNodeData } from 'element-plus/es/components/tree/src/tree.type';
-import Node from 'element-plus/es/components/tree/src/model/node';
-import { useElementSize } from '@vueuse/core';
-import { loginUserInfo } from '@renderer/store/commonStore';
 import { Action } from '@renderer/lib/action';
+import { loginUserInfo } from '@renderer/store/commonStore';
+import { useElementSize } from '@vueuse/core';
+import { ElButton, ElDialog, ElInput, ElMessage, ElPopover, ElTree } from 'element-plus';
+import Node from 'element-plus/es/components/tree/src/model/node';
+import { FilterValue, TreeNodeData } from 'element-plus/es/components/tree/src/tree.type';
 import type { SystemDirectiveVersion } from 'src/main/api/systemDirective';
-import { DirectiveData } from './types';
+import type { DirectiveTree } from 'src/main/userApp/types';
+import { ref, watch } from 'vue';
+import { directiveLoading, reloadDirective, useDirective } from '../directive';
+import { dragData } from '../dragVar';
 
 const emit = defineEmits<{
     (e: 'addDirective', data: DirectiveTree): void;

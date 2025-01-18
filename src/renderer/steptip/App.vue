@@ -25,6 +25,7 @@ const stepBlock = computed(() => {
         const data: Block = {
             blockLine: 0,
             flowName: '流程名',
+            flowAliasName: '流程名',
             directiveName: '',
             directiveDisplayName: '开始运行',
             failureStrategy: 'terminate',

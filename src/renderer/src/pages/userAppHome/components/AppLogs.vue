@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import type { Block, LogLevel, LogMessage } from 'src/main/userApp/types';
-import { onMounted, onUnmounted, ref } from 'vue'
+import type { LogMessage } from 'src/main/userApp/types';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 //设置属性默认值
 

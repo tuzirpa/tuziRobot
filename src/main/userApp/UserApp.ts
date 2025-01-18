@@ -223,6 +223,8 @@ export default class UserApp {
         this.description = this.packageJson.description;
         this.type = this.packageJson.type;
 
+        this.loadTuziAppData();
+        
         // this.initFlows();
     }
 
@@ -339,7 +341,16 @@ export default class UserApp {
                 activeFlow: 'main.flow'
             }
         });
+  
+        // 加载flows
+        this.initFlows();
+        this.generateMainJs();
 
+        return this.workStatus;
+    }
+
+    //加载全局变量
+    async loadTuziAppData() {
         //应用数据配置
         this.#tuziAppDataConf = new Conf<TuziAppData>({
             dir: this.appDir,
@@ -353,11 +364,6 @@ export default class UserApp {
         this.globalVariables = this.#tuziAppDataConf.get('globalVariables');
         this.elementLibrarys = this.#tuziAppDataConf.get('elementLibrarys');
 
-        // 加载flows
-        this.initFlows();
-        this.generateMainJs();
-
-        return this.workStatus;
     }
 
     async saveGlobalVariables(globalVariables: AppVariable[]) {
