@@ -6,6 +6,7 @@ import InputValueVarVariable from './InputValueVarVariable.vue';
 import { nextTick, ref } from 'vue';
 import { Action } from '@renderer/lib/action'
 import { ElInput, ElSelect, ElTooltip } from 'element-plus';
+import { curUserApp } from '../indexvue';
 
 // 添加逻辑
 const props = defineProps<{
@@ -21,7 +22,7 @@ console.log(_directive.value.inputs);
 
 
 
-_directive.value.failureStrategy = _directive.value.failureStrategy || 'terminate';
+_directive.value.failureStrategy = _directive.value.failureStrategy || 'throw';
 
 const groups = ref([
     { name: '常规', active: false },
@@ -46,42 +47,64 @@ nextTick(async () => {
             input.addConfig = addConfig;
         }
     }
-    setTimeout(() => {
+    if (!_directive.value.id){
+        setTimeout(() => {
+            //输入变量处理
+            for (const key in _directive.value.inputs) {
+                if (Object.prototype.hasOwnProperty.call(_directive.value.inputs, key)) {
+                    const input = _directive.value.inputs[key];
+                    //自动补全处理
+                    if (!input.value && input.addConfig.autoComplete) {
+                        //获取前置变量列表 在变量之后的不能作为输入然后倒序查找 实现最近使用变量优先
+                        const beforeVariables = _variables.value.filter(item => item.before).reverse();
+                        const variable = beforeVariables.find((item) => item.type === input.addConfig.filtersType);
+                        input.value = variable?.name;
+                    } else {
+                        input.value = input.value || input.addConfig.defaultValue;
+                    }
 
-        //输入变量处理
-        for (const key in _directive.value.inputs) {
-            if (Object.prototype.hasOwnProperty.call(_directive.value.inputs, key)) {
-                const input = _directive.value.inputs[key];
-                //自动补全处理
-                if (!input.value && input.addConfig.autoComplete) {
-                    const variable = _variables.value.find((item) => item.type === input.addConfig.filtersType);
-                    input.value = variable?.name;
-                } else {
-                    input.value = input.value || input.addConfig.defaultValue;
-                }
 
+                    if (input.addConfig.isAdvanced) {
+                        advancedNum.value++;
+                    }
+                    if (input.addConfig.type === 'select') {
 
-                if (input.addConfig.isAdvanced) {
-                    advancedNum.value++;
-                }
-            }
-        }
+                        if (input.addConfig.getOptions) {
+                            (async () => {
+                                const directive = _directive.value;
+                                const appInfo = curUserApp.value;
+                                const optionTuils = {
+                                    getUserApps: async () => {
+                                        const userApps = await Action.getUserApps();
+                                        return userApps;
+                                    }
+                                };
+                                const fun = new Function(`const fun = ${input.addConfig.getOptions};return fun.apply(null, arguments)`);
+                                input.addConfig.options = await fun(directive, appInfo, optionTuils);
+                            })();
+                        }
 
-        //输出变量处理
-        for (const key in _directive.value.outputs) {
-            if (Object.prototype.hasOwnProperty.call(_directive.value.outputs, key)) {
-                const output = _directive.value.outputs[key];
-                if (!output.name) {
-                    //未设置 获取默认值 如果默认值有被设置过 则加上序号
-                    output.name = output.name || output.addConfig?.defaultValue;
-                    let index = _variables.value.findLastIndex((item) => item.name.startsWith(output.name));
-                    if (index !== -1) {
-                        output.name = output.name + (index++);
                     }
                 }
             }
-        }
-    }, 300);
+
+            //输出变量处理
+            for (const key in _directive.value.outputs) {
+                if (Object.prototype.hasOwnProperty.call(_directive.value.outputs, key)) {
+                    const output = _directive.value.outputs[key];
+                    if (!output.name) {
+                        //未设置 获取默认值 如果默认值有被设置过 则加上序号
+                        output.name = output.name || output.addConfig?.defaultValue;
+                        let index = _variables.value.findLastIndex((item) => item.name.startsWith(output.name));
+                        if (index !== -1) {
+                            output.name = output.name + (index++);
+                        }
+                    }
+                }
+            }
+            }, 300);
+    }
+    
 });
 
 /**
@@ -125,12 +148,11 @@ function optionChange(e: string, inputItem: DirectiveInput) {
     //特殊处理 设置变量指令
     if (_directive.value.name === 'dataProcessing.setVariable') {
         _directive.value.outputs.varName.display = _directive.value.inputs.varType.display;
-        if (_directive.value.inputs.varType.value === 'any') {
-            _directive.value.inputs.varValue.addConfig.type = 'variable';
-            _directive.value.inputs.varValue.value = '';
-        } else {
-            _directive.value.inputs.varValue.addConfig.type = _directive.value.inputs.varType.value;
-        }
+        // let varTypeValue = _directive.value.inputs.varType.value;
+        // varTypeValue = varTypeValue === 'string' ? 'textarea' : varTypeValue;
+        // varTypeValue = varTypeValue === 'number' ? 'variable' : varTypeValue;
+        _directive.value.inputs.varValue.addConfig.type = 'textarea';
+        
     }
     console.log(inputItem.display);
 }
@@ -212,7 +234,7 @@ function inputItemFilters(directive: DirectiveTree, inputItem: DirectiveInput) {
                                             :variables="_variables" :inputItem="inputItem">
                                         </InputValueVar>
                                     </div>
-                                    <div class="relative" v-if="inputItem.addConfig.type === 'variable'">
+                                    <div class="relative" v-if="inputItem.type === 'variable' || inputItem.addConfig.type === 'variable'">
                                         <InputValueVarVariable @inputValueChange="inputValueChange"
                                             v-model="inputItem.value" :variables="_variables" :inputItem="inputItem">
                                         </InputValueVarVariable>
@@ -326,6 +348,7 @@ function inputItemFilters(directive: DirectiveTree, inputItem: DirectiveInput) {
                                     <el-option label="终止流程" value="terminate"></el-option>
                                     <el-option label="忽略并继续执行" value="ignore"></el-option>
                                     <el-option label="重试此指令" value="retry"></el-option>
+                                    <el-option label="往上抛出" value="throw"></el-option>
                                 </el-select>
                             </div>
                         </div>

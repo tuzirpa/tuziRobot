@@ -147,12 +147,12 @@ const curMenu = ref('myApp');
                             </el-icon>
                             <template #title>示例应用广场</template>
                         </el-menu-item> -->
-                        <!--  <el-menu-item index="downloadApp">
+                        <!----> <el-menu-item index="downloadApp">
                             <el-icon>
                                 <Download />
                             </el-icon>
                             <template #title>我获取的应用</template>
-                        </el-menu-item> -->
+                        </el-menu-item>
 
                     </el-menu>
                 </div>

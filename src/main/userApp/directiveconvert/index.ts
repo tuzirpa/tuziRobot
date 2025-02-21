@@ -23,9 +23,11 @@ const defaultToCode = (directive: DirectiveTree, blockCode: string) => {
             const input = directive.inputs[key];
             let codeValue = '';
             if (input.type === 'variable') {
-                codeValue = input.value;
+                codeValue = input.value === '' ? 'undefined' : input.value;
             } else if (input.type === 'array') {
                 codeValue = `[${input.value}]`;
+            } else if (input.type === 'arrayObject') {
+                codeValue = `${input.value}`;
             } else {
                 codeValue = typeToCode(input);
             }
@@ -36,34 +38,30 @@ const defaultToCode = (directive: DirectiveTree, blockCode: string) => {
         params = paramArr.join('');
     }
 
-    let returnVal = '';
+    let thenRes = '';
     const outputKeys = Object.keys(directive.outputs);
     if (outputKeys.length === 0) {
-        returnVal = '';
+        thenRes = '';
     } else {
-        const paramArr: string[] = [];
-        paramArr.push('{');
         const outputValueArr: string[] = [];
         outputKeys.forEach((key) => {
             const output = directive.outputs[key];
-            outputValueArr.push(`"${key}":${output.name}`);
+            outputValueArr.push(`${output.name}`);
+            thenRes += `${output.name} = res.${key}; `;
         });
-        paramArr.push(outputValueArr.join(','));
-        paramArr.push('}');
-        returnVal = paramArr.join('');
     }
-    const returnString = `var ${returnVal} = `;
     const key = directive.key || directive.name;
-    jsCode = `${returnVal ? returnString : ''}await robotUtil.${key}(${params},${blockCode});`;
+    jsCode = `await robotUtil.${key}(${params},${blockCode}).then(res=>{ ${thenRes}});`;
     return jsCode;
 };
 
-export async function convertDirective(directive: DirectiveTree, index: number, flow: Flow) {
+export async function convertDirective(directive: DirectiveTree, index: number, flow?: Flow) {
     let toCode = directiveToCodeMap.get(directive.key ?? directive.name);
     toCode = toCode || directive.toCode;
     const block: Block = {
         blockLine: index + 1,
-        flowName: flow.name,
+        flowAliasName: flow?.aliasName ?? flow?.name ?? '调试代码',
+        flowName: flow?.name ?? '调试代码',
         directiveName: directive.name,
         directiveDisplayName: directive.displayName || directive.name,
         failureStrategy: directive.failureStrategy || 'terminate',
@@ -73,13 +71,14 @@ export async function convertDirective(directive: DirectiveTree, index: number, 
     const {
         blockLine,
         flowName,
+        flowAliasName,
         directiveName,
         directiveDisplayName,
         failureStrategy,
         intervalTime,
         retryCount
     } = block;
-    const blockCode = `_block = generateBlock(${blockLine}, "${flowName}", "${directiveName}", "${directiveDisplayName}", "${failureStrategy}", ${intervalTime}, ${retryCount})`;
+    const blockCode = `_block = generateBlock(${blockLine}, "${flowName}", "${flowAliasName}", "${directiveName}", "${directiveDisplayName}", "${failureStrategy}", ${intervalTime}, ${retryCount})`;
 
     // 由于保存代码时不存 inputs的addConfig 和 outputs的typeDetails 字段，所以在这里补全
     //补全 addConfig 字段

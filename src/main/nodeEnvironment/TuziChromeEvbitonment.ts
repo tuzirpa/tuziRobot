@@ -62,8 +62,9 @@ export class TuiziChromeEvbitonment {
         //下载文件
         console.log('开始下载内置浏览器');
         //创建临时文件
-        fs.mkdirSync(this.path, { recursive: true });
-        this.tempFile = path.join(this.userDataDir, 'temp', 'chrome-win64.zip');
+        const tempDir = path.join(this.userDataDir, 'temp');
+        fs.mkdirSync(tempDir, { recursive: true });
+        this.tempFile = path.join(tempDir, 'chrome-win64.zip');
         if (!fs.existsSync(this.tempFile)) {
             await downloadFileWithResume(this.url, this.tempFile, (progress) => {
                 console.log(`下载进度：${progress.percentage}%`);

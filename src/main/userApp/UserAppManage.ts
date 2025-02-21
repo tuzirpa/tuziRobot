@@ -1,14 +1,17 @@
-import fs from 'fs';
-import UserApp, { AppType } from './UserApp';
 import { uuid } from '@shared/Utils';
-import Flow from './Flow';
-import { unzip, zip } from '../utils/zipUtils';
-import { join } from 'path';
-import { uploadFileToQiniu } from '../utils/qiniuUtils';
-import { appPlazaAdd, getDownloadUrl } from '../api/appplaza';
+import { shell } from 'electron';
+import fs from 'fs';
+import http from 'http';
+import path, { join } from 'path';
+import { getDownloadUrl } from '../api/appplaza';
+import { fileDecipher, fileEncipher } from '../utils/FileEncipherUtils';
 import { downloadFileWithResume } from '../utils/download';
+import { createTempFile, readZipFile, unzip, zip } from '../utils/zipUtils';
+import Flow from './Flow';
+import UserApp, { AppType } from './UserApp';
 import { WorkStatus } from './WorkStatusConf';
-import { AppVariable, ElementLibrary } from './types';
+import { convertDirective } from './directiveconvert';
+import { AppVariable, DirectiveTree, ElementLibrary } from './types';
 
 /**
  * 广场的应用
@@ -24,6 +27,67 @@ export type AppPlaza = {
 };
 
 export class UserAppManage {
+    openLogsDir(appId: string) {
+        const userApp = this.findUserApp(appId);
+        if (userApp.lastRunLogId) {
+            const logsDir = path.join(userApp.appDir, 'logs', `${userApp.lastRunLogId}.log`);
+            shell.openExternal(logsDir);
+        } else {
+            const logsDir = path.join(userApp.appDir, 'logs');
+            shell.openExternal(logsDir);
+        }
+    }
+    async executeStep(_appId: string, step: DirectiveTree, index: number) {
+        // const userApp = this.findUserApp(appId);
+        //动态运行一般只在编写流程时使用，所以这里暂时不做错误处理，直接忽略错误，后续再考虑处理方式
+        step.failureStrategy = 'ignore';
+        let codejs = await convertDirective(step, index);
+        const outputKeys = Object.keys(step.outputs);
+        if (outputKeys.length === 0) {
+            codejs = codejs.replace('await robotUtil.', 'robotUtil.');
+        } else {
+            codejs = codejs.replace('await robotUtil.', 'robotUtil.');
+            const outputValueArr: string[] = [];
+            let thenRes = '';
+            outputKeys.forEach((key) => {
+                const output = step.outputs[key];
+                outputValueArr.push(`${output.name}`);
+                thenRes += `${output.name} = res.${key}; `;
+            });
+            const outputValString = 'var ' + outputValueArr.join(',') + ';';
+            codejs = codejs.substring(0, codejs.lastIndexOf(';')) + `.then((res)=>{${thenRes}});`;
+            codejs = `${outputValString}${codejs}`;
+        }
+        //已由指令强制更改成忽略错误
+        // codejs =
+        //     codejs.substring(0, codejs.lastIndexOf(';')) +
+        //     `.catch((res)=>{console.error('动态运行指令错误',res);});`;
+        const req = http.request(
+            {
+                hostname: '127.0.0.1',
+                port: 9015,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain'
+                }
+            },
+            (res) => {
+                console.log(`STATUS: ${res.statusCode}`);
+                console.log(`HEADERS: ${JSON.stringify(res.headers)}`);
+                res.setEncoding('utf8');
+                res.on('data', (chunk) => {
+                    console.log(`BODY: ${chunk}`);
+                });
+                res.on('end', () => {
+                    console.log('No more data in response.');
+                });
+            }
+        );
+        req.write(codejs);
+        req.end();
+        return 'ok';
+    }
+
     updateUserAppDescription(appId: string, description: string) {
         const userApp = this.findUserApp(appId);
         userApp.description = description;
@@ -61,7 +125,7 @@ export class UserAppManage {
     }
 
     /**
-     * 扫描本地应用
+     * 检查错误
      */
     lintError(appId: string) {
         const userApp = this.findUserApp(appId);
@@ -123,7 +187,46 @@ export class UserAppManage {
         userApp.save();
         return userApp;
     }
-    async shareUserAppToPlaza(appId: string) {
+
+    /**
+     * 导入应用
+     */
+    async importApp(zipPath: string) {
+        //创建本地应用 并设置成导入的应用
+        const tempFile = createTempFile('userApp', '.zip');
+        await fileDecipher(zipPath, tempFile, '123456');
+        console.log('tempFile', tempFile);
+        const appPackage = readZipFile(tempFile, 'package.json');
+        const app = JSON.parse(appPackage);
+        const userApp = this.userApps
+            .filter((item) => item.type === 'into')
+            .find((item) => app.id === item.sourceAppId);
+        if (userApp) {
+            throw new Error('已导入过此应用，请勿重复导入');
+        }
+
+        const id = uuid();
+        const newUserApp = new UserApp(`app_${Date.now()}_${id}`);
+
+        await unzip(tempFile, path.join(UserApp.userAppLocalDir, `${newUserApp.id}`));
+        fs.unlinkSync(tempFile);
+
+        newUserApp.name = app.name;
+        newUserApp.type = 'into';
+        newUserApp.sourceAppId = app.id;
+
+        this.userApps.push(newUserApp);
+
+        // 加载flows
+        newUserApp.initFlows();
+        newUserApp.generateMainJs();
+        newUserApp.save();
+        console.log(app, 'app');
+
+        return;
+    }
+
+    async shareUserAppToPlaza(appId: string, outFilePath: string) {
         const userApp = this.findUserApp(appId);
         if (userApp.type !== 'into') {
             //分享到广场
@@ -134,37 +237,36 @@ export class UserAppManage {
              * 4. 添加应用到应用广场
              * 5. 分享成功返回分享地址
              */
-            const zipPath = join(userApp.appDir, `${userApp.id}.zip`);
+            // const zipPath = join(userApp.appDir, `${userApp.id}.zip`);
+            const zipPath = createTempFile('userApp', '.zip');
             zip(zipPath, userApp.appDir, (filename) => {
-                if (filename.startsWith('logs')) {
-                    return false;
-                }
-                if (filename.startsWith('main.js')) {
-                    return false;
-                }
-                if (filename.startsWith('package.json')) {
+                //过滤掉不需要的文件
+                const exts = ['userData', '.tuzi', 'logs'];
+                if (exts.some((ext) => filename.startsWith(ext))) {
                     return false;
                 }
                 return true;
             });
+            await fileEncipher(zipPath, path.join(outFilePath, `${userApp.name}.tuzi`), '123456');
+            shell.openExternal(outFilePath);
             // TODO: 上传文件到服务器
-            const fileUrl = await uploadFileToQiniu(zipPath);
-            //删除压缩文件
-            fs.unlinkSync(zipPath);
+            // const fileUrl = await uploadFileToQiniu(zipPath);
+            // //删除压缩文件
+            // fs.unlinkSync(zipPath);
 
-            // TODO: 添加应用到应用广场
-            const appPlaza = await appPlazaAdd({
-                fileUrl,
-                appInfo: {
-                    name: userApp.name,
-                    description: userApp.description,
-                    version: userApp.version,
-                    id: userApp.id
-                }
-            });
-            console.log(appPlaza);
+            // // TODO: 添加应用到应用广场
+            // const appPlaza = await appPlazaAdd({
+            //     fileUrl,
+            //     appInfo: {
+            //         name: userApp.name,
+            //         description: userApp.description,
+            //         version: userApp.version,
+            //         id: userApp.id
+            //     }
+            // });
+            // console.log(appPlaza);
 
-            return appPlaza;
+            return zipPath;
         } else {
             throw new Error('分享类型错误');
         }
@@ -193,7 +295,7 @@ export class UserAppManage {
         const userApp = this.findUserApp(appId);
         return userApp.devGetProperties(objectId);
     }
-    devStop(appId: string) {
+    async devStop(appId: string) {
         const userApp = this.findUserApp(appId);
         userApp.devStop();
     }
@@ -211,7 +313,7 @@ export class UserAppManage {
     }
     userAppRun(appId: string) {
         const userApp = this.findUserApp(appId);
-        userApp.run();
+        return userApp.run();
     }
     installPackage(appId: string) {
         const userApp = this.findUserApp(appId);
@@ -252,11 +354,11 @@ export class UserAppManage {
         return userApp;
     }
 
-    getUserApps(type: AppType): UserApp[] {
-        if (type === 'into') {
+    getUserApps(type?: AppType): UserApp[] {
+        if (type) {
             return this.userApps.filter((app) => app.type === type);
         }
-        return this.userApps.filter((app) => app.type === type || !app.type);
+        return this.userApps;
     }
 
     newUserApp(name: string) {
@@ -278,9 +380,9 @@ export class UserAppManage {
         flowSave.blocks = flow.blocks;
         flowSave.blocks.forEach((block) => {
             // delete block.pdLvn;
-            delete block.isFold;
-            delete block.open;
-            delete block.hide;
+            // delete block.isFold;
+            // delete block.open;
+            // delete block.hide;
             for (const key in block.inputs) {
                 if (Object.prototype.hasOwnProperty.call(block.inputs, key)) {
                     const input = block.inputs[key];

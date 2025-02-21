@@ -213,6 +213,10 @@ export function getDirectiveAddConfig(directiveKey: string, key: string) {
         console.warn(`找不到指令${directiveKey}.${key}的addConfig`);
         throw new Error(`找不到指令${directiveKey}.${key}的addConfig`);
     }
+    if (addConfig.type === 'select') {
+        addConfig.getOptions = addConfig.getOptions?.toString();
+    }
+
     return addConfig;
 }
 

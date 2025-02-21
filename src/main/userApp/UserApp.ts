@@ -129,6 +129,7 @@ export default class UserApp {
     id: string;
     version: string = '1.0.0';
     type: AppType = 'myCreate';
+    sourceAppId: string = '';
     main: string = 'main.js';
     author: string = '';
     license: string = '';
@@ -139,6 +140,7 @@ export default class UserApp {
     appRobotUtilDir: string = '';
     packageJson: any = {};
     lastRunLogId!: string;
+    status: 'running' | 'pause' | 'stop' = 'stop';
 
     flows: Flow[] = [];
     #devNodeJs: DevNodeJs | null = null;
@@ -197,6 +199,7 @@ export default class UserApp {
         this.packageJson.name = this.name;
         this.packageJson.description = this.description;
         this.packageJson.type = this.type;
+        this.packageJson.sourceAppId = this.sourceAppId;
         fs.writeFileSync(
             path.join(this.appDir, 'package.json'),
             JSON.stringify(this.packageJson, null, 2)
@@ -220,6 +223,8 @@ export default class UserApp {
         this.description = this.packageJson.description;
         this.type = this.packageJson.type;
 
+        this.loadTuziAppData();
+        
         // this.initFlows();
     }
 
@@ -285,7 +290,9 @@ export default class UserApp {
         mainJsContent.push(
             `const logsDir = join(__dirname,'logs');if(!fs.existsSync(logsDir)){fs.mkdirSync(logsDir)}`
         );
-        mainJsContent.push(`log.setLogFile(join(logsDir,process.env.RUN_LOG_ID + '.log'));`);
+        mainJsContent.push(
+            `log.setLogFile(join(logsDir,(process.env.RUN_LOG_ID??Date.now()) + '.log'));`
+        );
         mainJsContent.push(`// child.js
             process.on('uncaughtException', (err) => {
                 console.error(err.stack);
@@ -334,7 +341,16 @@ export default class UserApp {
                 activeFlow: 'main.flow'
             }
         });
+  
+        // 加载flows
+        this.initFlows();
+        this.generateMainJs();
 
+        return this.workStatus;
+    }
+
+    //加载全局变量
+    async loadTuziAppData() {
         //应用数据配置
         this.#tuziAppDataConf = new Conf<TuziAppData>({
             dir: this.appDir,
@@ -348,11 +364,6 @@ export default class UserApp {
         this.globalVariables = this.#tuziAppDataConf.get('globalVariables');
         this.elementLibrarys = this.#tuziAppDataConf.get('elementLibrarys');
 
-        // 加载flows
-        this.initFlows();
-        this.generateMainJs();
-        this.generatePackageJson();
-        return this.workStatus;
     }
 
     async saveGlobalVariables(globalVariables: AppVariable[]) {
@@ -475,6 +486,11 @@ export default class UserApp {
         return this.start();
     }
 
+    stop() {
+        // 停止
+        return this.devStop();
+    }
+
     async devStepOver() {
         if (this.#devNodeJs) {
             this.#devNodeJs.stepOver();
@@ -485,7 +501,7 @@ export default class UserApp {
             this.#devNodeJs.resume();
         }
     }
-    async devStop() {
+    devStop() {
         if (!this.#devPrecess) {
             return;
         }
@@ -499,6 +515,7 @@ export default class UserApp {
                     setTimeout(resolve, 100);
                 });
                 const exitRes = this.#devPrecess && this.#devPrecess.kill();
+                WindowManage.mainWindow.webContents.send('userApps_update');
                 console.log('退出结果', exitRes);
             });
         }
@@ -520,15 +537,19 @@ export default class UserApp {
 
     async dev() {
         // 调试启动 带断点启动
-        return this.start(this.breakpoints);
+        return this.start(this.breakpoints, true);
     }
 
     #logsData: LogMessage[] = [];
     #lastLogsOutIndex: number = 0;
     #logsOutSt: string | number | NodeJS.Timeout | undefined;
 
-    _sendRunLogs(data: LogMessage | LogMessage[]) {
-        WindowManage.mainWindow.webContents.send('run-logs', data);
+    _sendRunLogs(data: LogMessage[]) {
+        const dataTemp = data.map((item) => {
+            return { ...item, appId: this.id };
+        });
+        WindowManage.mainWindow.webContents.send('run-logs', dataTemp);
+        WindowManage.mainWindow.webContents.send('run-logs-' + this.id, dataTemp);
     }
 
     sendRunLogs(data: LogMessage | LogMessage[]) {
@@ -543,14 +564,21 @@ export default class UserApp {
         this.#stepWindow?.webContents.send('run-step', data);
     }
 
-    async start(breakpoints: IBreakpoint[] = []) {
+    async start(breakpoints: IBreakpoint[] = [], isDebug: boolean = false) {
+        if (this.status === 'running') {
+            throw new Error('流程正在运行，请先停止流程，后再启动');
+        }
         this.#stepWindow = this.#stepWindow || new StepWindow(this.id);
         // this.#stepWindow.once('show', async () => {});
         if (!this.#stepWindow?.isVisible()) this.#stepWindow?.show();
         await sleep(1000);
-        this.startRun(breakpoints);
+        this.startRun(breakpoints, isDebug);
+        return this;
     }
-    startRun(breakpoints: IBreakpoint[] = []) {
+    startRun(breakpoints: IBreakpoint[] = [], isDebug: boolean = false) {
+        this.status = 'running';
+        WindowManage.mainWindow.webContents.send('userApps_update');
+
         // let breakpoints: IBreakpoint[] = [];
         // breakpoints = this.breakpoints;
         this.sendRunLogs({
@@ -569,7 +597,7 @@ export default class UserApp {
         });
 
         const cmds: string[] = [];
-        if (breakpoints.length > 0) {
+        if (isDebug) {
             cmds.push(`--inspect`);
         }
 
@@ -621,6 +649,9 @@ export default class UserApp {
             }
         });
         this.#devPrecess.on('exit', (code) => {
+            this.status = 'stop';
+            WindowManage.mainWindow.webContents.send('userApps_update');
+
             console.log(`子进程已退出，退出码 ${code}`);
             if (this.#devNodeJs) {
                 this.#devNodeJs.close();
@@ -641,6 +672,7 @@ export default class UserApp {
                 } as any
             });
             WindowManage.mainWindow.webContents.send('devRunEnd');
+
             this.#devPrecess = null;
             this.#stepWindow?.hide();
 
@@ -649,6 +681,14 @@ export default class UserApp {
             this.#lastLogsOutIndex = this.#logsData.length;
             this._sendRunLogs(data);
         });
+    }
+
+    async devRunJs(code: string) {
+        // 调试运行js代码
+        if (!this.#devNodeJs) {
+            throw new Error('调试进程未启动');
+        }
+        return this.#devNodeJs.runJs(code);
     }
 
     async lintError() {

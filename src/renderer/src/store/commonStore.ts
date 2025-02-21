@@ -1,6 +1,14 @@
 import { computed, ref } from 'vue';
 import { UserInfo } from './UserInfo';
 import { Action } from '@renderer/lib/action';
+import type UserApp from 'src/main/userApp/UserApp';
+
+export type UserAppInfo = Omit<Readonly<UserApp>, ''> & {
+    deleting?: boolean;
+    showLogs?: boolean;
+    description: string;
+    name: string;
+};
 
 export const loginUserInfo = ref<UserInfo>({
     uid: -1,
@@ -31,3 +39,9 @@ export const setUserInfo = async () => {
 setUserInfo();
 
 export const isLogin = computed(() => loginUserInfo.value.uid > 0);
+
+export const userApps = ref<UserAppInfo[]>([]);
+export const getUserApps = async () => {
+    userApps.value = await Action.getUserApps();
+    console.log('用户应用', userApps.value);
+};

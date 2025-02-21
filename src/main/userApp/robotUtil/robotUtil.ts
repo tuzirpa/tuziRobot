@@ -1,6 +1,6 @@
+import fs from 'fs';
 import type { Block } from '../types';
 import { sendLog } from './commonUtil';
-import fs from 'fs';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -35,14 +35,26 @@ function forRobotUtil(obj: any) {
                         const result = await (value as Function).apply(this, args);
                         return result;
                     } catch (error: any) {
-                        // olog(error);
-                        console.error(error);
                         if (blockInfo.failureStrategy === 'terminate') {
+                            globalThis._block = blockInfo;
+                            
+                            console.error(error.stack);
                             console.error(
                                 `执行指令 ${blockInfo.directiveDisplayName} 异常,终止流程`
                             );
+                            
                             process.exit(1);
-                        } else if (blockInfo.failureStrategy === 'ignore') {
+                        } else if (blockInfo.failureStrategy === 'throw') {
+                            globalThis._block = blockInfo;
+                            
+                            console.error(error.stack);
+                            console.error(
+                                `执行指令 ${blockInfo.directiveDisplayName} 异常,往上抛出异常`
+                            );
+                            //向上抛出异常，以便后续加入try-catch处理
+                            throw new Error(`执行指令 ${blockInfo.directiveDisplayName} 异常,往上抛出异常`);
+                            // process.exit(1);
+                        } else  if (blockInfo.failureStrategy === 'ignore') {
                             console.error(
                                 `执行指令 ${blockInfo.directiveDisplayName} 异常 ,忽略错误`
                             );
@@ -54,7 +66,7 @@ function forRobotUtil(obj: any) {
                                 console.error(
                                     `执行指令 ${blockInfo.directiveDisplayName} 异常 ,重试次数达到上限`
                                 );
-                                process.exit(1);
+                                throw new Error(`执行指令 ${blockInfo.directiveDisplayName} 异常 ,重试次数达到上限`);
                             } else {
                                 console.error(
                                     `执行指令 ${blockInfo.directiveDisplayName} 异常 ,${blockInfo.intervalTime} 秒后重试第${retryCountNum}次`
@@ -89,6 +101,7 @@ forRobotUtil(robotUtil);
 export const generateBlock = (
     blockLine,
     flowName,
+    flowAliasName,
     directiveName,
     directiveDisplayName,
     failureStrategy,
@@ -98,6 +111,7 @@ export const generateBlock = (
     return {
         blockLine,
         flowName,
+        flowAliasName,
         directiveName,
         directiveDisplayName,
         failureStrategy,
@@ -120,6 +134,7 @@ export const fatalError = (error: any, fileName: string) => {
         globalThis._block = {
             blockLine: -1,
             flowName: '未知流程',
+            flowAliasName: '未知流程',
             directiveName: '',
             directiveDisplayName: '',
             failureStrategy: 'terminate',

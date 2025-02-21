@@ -18,7 +18,7 @@ import { getRandom } from '../utils/RandomUtils';
 import { getDeviceID } from '../utils/divice';
 import { submitFeedback } from '../api/feedback';
 import { WorkStatus } from '../userApp/WorkStatusConf';
-import { AppVariable, ElementLibrary } from '../userApp/types';
+import { AppVariable, DirectiveTree, ElementLibrary } from '../userApp/types';
 import SystemDirectivePackageManage from '../systemDirective/SystemDirectivePackageManage';
 import * as lzString from 'lz-string';
 
@@ -27,6 +27,16 @@ import type { AppType } from '../userApp/UserApp';
 import { browserManage } from '../browser/BrowserManage';
 
 class Action {
+    static openLogsDir(appId: string) {
+        return UserAppManage.openLogsDir(appId);
+    }
+    static async importApp() {
+        const filePath = await this.selectFileOrFolder();
+        return UserAppManage.importApp(filePath[0]);
+    }
+    static async executeStep(appId: string, step: DirectiveTree, index: number) {
+        return UserAppManage.executeStep(appId, step, index);
+    }
     static async updateUserAppDescription(appId: string, description: string) {
         return UserAppManage.updateUserAppDescription(appId, description);
     }
@@ -123,15 +133,45 @@ class Action {
     /**
      * 选择一个文件或文件夹
      */
-    static async selectFileOrFolder(openDirectory: boolean = false, extensions: string[] = ['*']) {
+    static async selectFileOrFolder(
+        openDirectory: boolean = false,
+        extensions: string[] = ['*'],
+        title?: string
+    ) {
         const properties = ['openFile'];
         openDirectory && properties.push('openDirectory');
-
+        const dialogTitle = title ?? `${openDirectory ? '选择文件夹' : '选择文件'}`;
         const res = await dialog.showOpenDialog({
             //@ts-ignore
             properties: properties,
-            message: `${openDirectory ? '选择文件夹' : '选择文件'}`,
+            message: dialogTitle,
             buttonLabel: '选择',
+            filters: [{ name: '所有文件', extensions }]
+        });
+        return res.filePaths;
+    }
+
+    /**
+     * 选择一个文件或文件夹
+     */
+    static async selectFileOrFolder1({
+        openDirectory = false,
+        extensions = ['*'],
+        title
+    }: {
+        openDirectory?: boolean;
+        extensions?: string[];
+        title?: string;
+    }) {
+        const properties = ['openFile'];
+        openDirectory && properties.push('openDirectory');
+        title = title ?? `${openDirectory ? '选择文件夹' : '选择文件'}`;
+        const res = await dialog.showOpenDialog({
+            //@ts-ignore
+            properties: properties,
+            message: title,
+            title,
+            buttonLabel: '导出到此',
             filters: [{ name: '所有文件', extensions }]
         });
         return res.filePaths;
@@ -172,7 +212,7 @@ class Action {
      * 获取用户应用列表
      * @returns 用户应用列表
      */
-    static async getUserApps(type: AppType = 'myCreate') {
+    static async getUserApps(type?: AppType) {
         return UserAppManage.getUserApps(type);
     }
 
@@ -210,11 +250,18 @@ class Action {
     }
 
     /**
-     * 分享用户应用
+     * 导出到本地
      */
 
     static async shareUserAppToPlaza(appId: string) {
-        return UserAppManage.shareUserAppToPlaza(appId);
+        const filePath = await this.selectFileOrFolder1({
+            openDirectory: true,
+            title: '选择导出到的文件夹'
+        });
+        if (!filePath || filePath.length === 0) {
+            return;
+        }
+        return UserAppManage.shareUserAppToPlaza(appId, filePath[0]);
     }
 
     /**
@@ -478,6 +525,23 @@ class Action {
      */
     static async useVersionSystemDirective(version: string) {
         return SystemDirectivePackageManage.useVersionSystemDirective(version);
+    }
+
+    static async updateAppConfig(appId: string, variables: AppVariable[]) {
+        const app = await this.getUserApp(appId);
+        if (!app) return;
+        
+        // 更新暴露变量的值
+        app.globalVariables = app.globalVariables.map(v => {
+            const updatedVar = variables.find(uv => uv.name === v.name);
+            if (updatedVar && v.exposed) {
+                v.value = updatedVar.value;
+            }
+            return v;
+        });
+        
+        // 保存全局变量
+        await this.saveGlobalVariables(appId, app.globalVariables);
     }
 }
 

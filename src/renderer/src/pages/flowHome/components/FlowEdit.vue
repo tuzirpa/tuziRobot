@@ -41,8 +41,10 @@ const emit = defineEmits<{
 }>();
 
 
-async function executeStep() {
+async function executeStep(step: DirectiveData, index: number) {
     console.log('executeStep');
+    const res = await Action.executeStep(props.appInfo.id, step, index);
+    console.log('调试运行结果', res);
 }
 
 async function disableCurDirective() {
@@ -57,14 +59,11 @@ const files = computed<OpenFile[]>(() => {
     return props.flows.map((item) => {
         const blocks = item.blocks.map((block) => {
             return {
-                ...block,
-                open: false,
-                hide: false,
                 pdLvn: 0,
-                isFold: false,
                 id: uuid(),
                 foldDesc: '',
-                commentShow: ''
+                commentShow: '',
+                ...block
             };
         });
         return {
@@ -163,21 +162,23 @@ const blocks = computed(() => {
         curOpenFile.value.blocks[index].pdLvn = pdLvn;
         //是否有折叠
         curOpenFile.value.blocks[index].isFold = false;
-        if (block.isElse) {
+        /* if (block.isElse) {
             pdLvn--;
             pdLvn = pdLvn < 0 ? 0 : pdLvn;
             curOpenFile.value.blocks[index].pdLvn = pdLvn;
             curOpenFile.value.blocks[index].isFold = true;
             curOpenFile.value.blocks[index].open = true;
             pdLvn++;
-        } else if (block.isControl) {
-            curOpenFile.value.blocks[index].isFold = true;
-            curOpenFile.value.blocks[index].open = true;
-            pdLvn++;
-        } else if (block.isControlEnd) {
+        }else */if (block.isControlEnd) {
             pdLvn--;
             pdLvn = pdLvn < 0 ? 0 : pdLvn;
             curOpenFile.value.blocks[index].pdLvn = pdLvn;
+        }
+
+        if (block.isControl) {
+            curOpenFile.value.blocks[index].isFold = true;
+            curOpenFile.value.blocks[index].open = curOpenFile.value.blocks[index].open === undefined ? true : curOpenFile.value.blocks[index].open;
+            pdLvn++;
         }
     });
 
@@ -215,11 +216,11 @@ function getFoldSub(blockParam: DirectiveData) {
     const index = curOpenFile.value.blocks.findIndex((block) => block.id === blockParam.id);
     for (let i = index + 1; i < curOpenFile.value.blocks.length; i++) {
         const tempBlock = curOpenFile.value.blocks[i];
-        if (tempBlock.isElse) {
-            break;
-        }
+        // if (tempBlock.isElse) {
+        //     break;
+        // }
         subBlocks.push(tempBlock);
-        if (blockParam.pdLvn === tempBlock.pdLvn) {
+        if (blockParam.pdLvn >= tempBlock.pdLvn) {
             break;
         }
         foldNum++;
@@ -505,14 +506,19 @@ async function addBlock(directive: DirectiveTree, index?: number) {
     addTempDialogVisible.value = true;
 }
 
-/**
- * 复制选中的块
- */
-async function copyBlocks() {
+async function copyBlocksImpl() {
     let textHead = '//tuziRpa';
     let text = JSON.stringify(curBlocks.value);
     const textEncrypt = await Action.aesEncrypt(text);
     await Action.copyToClipboard(`${textHead}${textEncrypt}`);
+
+}
+
+/**
+ * 复制选中的块
+ */
+async function copyBlocks() {
+    copyBlocksImpl();
     ElMessage.success('复制成功');
 }
 
@@ -566,7 +572,7 @@ async function pasteBlocks() {
  */
 async function cutBlocks() {
     //先复制 然后删除 就实现剪切
-    await navigator.clipboard.writeText(JSON.stringify(curBlocks.value));
+    await copyBlocksImpl();
     curOpenFile.value.blocks = curOpenFile.value.blocks.filter(
         (item) => !curBlocks.value.some((block) => block.id === item.id)
     );
@@ -582,11 +588,11 @@ function deleteBlocks() {
     curOpenFile.value.blocks = curOpenFile.value.blocks.filter(
         (item) => !curBlocks.value.some((block) => block.id === item.id)
     );
-
+    curBlocks.value = [];
     saveCurFlow('删除');
 }
 
-function directiveShowContextMenu(event: any, block: DirectiveData) {
+function directiveShowContextMenu(event: any, block: DirectiveData, index: number) {
     event.preventDefault();
     toggleCheckBlock(block);
     console.log(props.isDev, '是否开发模式');
@@ -595,11 +601,11 @@ function directiveShowContextMenu(event: any, block: DirectiveData) {
         {
             label: '执行此步骤(调试可用)',
             onClick: () => {
-                executeStep();
+                executeStep(block, index);
             },
             icon: 'icon-yunxing',
             shortcut: '',
-            disabled: !props.isDev
+            // disabled: !props.isDev
         },
         {
             label: '禁用/启用当前指令',
@@ -937,6 +943,16 @@ function initHandleWheel() {
         event.preventDefault();
     });
 }
+
+function addBlockDialogOpened() {
+    //@ts-ignore
+    window.document.querySelector('.addBlockDialog input').focus()
+}
+
+function filterMethod(node: any, key: string) {
+    return !!node.value?.displayName.toLocaleLowerCase().includes(key.toLocaleLowerCase());
+}
+
 onMounted(() => {
     initHandleWheel();
     checkError(props.appInfo.id);
@@ -1023,7 +1039,7 @@ defineExpose({
                         <div class="directive-block" v-for="(element, index) in blocks" :data-id="element.id"
                             :class="[`border-${element.errorLevel} border-l`, index + 1 === breakpointData.line ? 'bg-red-200/60' : '']"
                             :key="element.id" draggable="true" @dragstart="blockDragStart(element, index)"
-                            @contextmenu="directiveShowContextMenu($event, element)">
+                            @contextmenu="directiveShowContextMenu($event, element, index)">
                             <div class="row flex items-center" :class="{ 'text-gray-400/50': element.disabled }">
                                 <div class="flex flex-1 h-16" v-show="!element.hide">
                                     <div class="h-full row-content group relative hover:bg-gray-100/50 flex-1 has-[.add:hover]:border-b-2 has-[.add:hover]:border-blue-500"
@@ -1081,7 +1097,11 @@ defineExpose({
                     </template>
                     <div v-show="blocks.length === 0"
                         class="flex flex-1 justify-center items-center text-center text-gray-400">
-                        从左侧拖入指令，像搭积木一样完成自动化流程。
+                        从左侧拖入指令或
+                        <span class="text-blue-500 cursor-pointer hover:underline" @click="addBlockDialogVisible = true">
+                            点我添加
+                        </span>
+                        ，像搭积木一样完成自动化流程。
                     </div>
                 </div>
 
@@ -1089,10 +1109,12 @@ defineExpose({
             </div>
         </div>
         <!-- 添加指令弹框 -->
-        <el-dialog v-model="addBlockDialogVisible" title="添加指令" width="500" align-center draggable>
+        <el-dialog v-model="addBlockDialogVisible" title="添加指令" @opened="addBlockDialogOpened" width="500" align-center
+            draggable>
             <div class="flex flex-col">
-                <ElCascader v-model="addBlockDirective" placeholder="选择要添加的指令" @change="addBlockComfig"
-                    :options="directivesData" filterable />
+                <ElCascader class="addBlockDialog" ref="directiveCascader" v-model="addBlockDirective"
+                    placeholder="选择要添加的指令" @change="addBlockComfig" :options="directivesData" filterable
+                    :filter-method="filterMethod" clearable autofocus />
             </div>
             <template #footer>
                 <div class="dialog-footer">

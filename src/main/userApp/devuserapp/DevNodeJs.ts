@@ -4,6 +4,7 @@ export interface IBreakpoint {
     url: string;
     line: number;
     id?: string;
+    callFrame?: any;
     scopeChain?: any[];
 }
 
@@ -28,6 +29,19 @@ export interface IExecutionThrown {
 }
 
 export class DevNodeJs {
+    private callFrameId: string = '';
+
+    async runJs(code: string) {
+        //编译脚本
+        let evaluateRes = await this.sendCommand('Debugger.evaluateOnCallFrame', {
+            expression: code,
+            callFrameId: this.callFrameId
+        });
+
+        //返回执行结果
+        return evaluateRes.result;
+    }
+
     async deleteBreakPoint(breakpoint: IBreakpoint) {
         const creBreakpointIndex = this.breakpoints.findIndex(
             (value) => breakpoint.url === value.url && breakpoint.line === value.line
@@ -145,6 +159,7 @@ export class DevNodeJs {
         console.log('断点暂停:', params);
         const callFrames = params.callFrames;
         const callFrame = callFrames[0];
+        this.callFrameId = callFrame.callFrameId;
         const location = callFrame.location;
         const scriptId = location.scriptId;
         const lineNumber = location.lineNumber;
@@ -167,6 +182,7 @@ export class DevNodeJs {
         this.breakpointCallbacks.forEach((callback) => {
             callback({
                 scopeChain,
+                callFrame,
                 url: script.url,
                 line: lineNumber
             });

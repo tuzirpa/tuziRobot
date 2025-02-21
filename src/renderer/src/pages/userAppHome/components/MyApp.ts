@@ -1,8 +1,6 @@
 import { Action } from '@renderer/lib/action';
+import { UserAppInfo } from '@renderer/store/commonStore';
 import { ElMessage } from 'element-plus';
-import type UserApp from 'src/main/userApp/UserApp';
-
-export type UserAppInfo = Readonly<UserApp> & { deleting?: boolean; description: string };
 
 /**
  * 发布到应用示例广场
@@ -10,8 +8,8 @@ export type UserAppInfo = Readonly<UserApp> & { deleting?: boolean; description:
  */
 export async function shareUserAppToPlaza(app: UserAppInfo) {
     console.log('shareUserAppToPlaza', app);
-    await Action.shareUserAppToPlaza(app.id);
-    ElMessage.success('发布成功');
+    const fileUrl = await Action.shareUserAppToPlaza(app.id);
+    ElMessage.success(`导出成功,路径：${fileUrl}`);
 }
 
 /**
