@@ -1,14 +1,13 @@
 <script setup lang="tsx">
-import { Share, Upload, Setting } from '@element-plus/icons-vue';
+import { Setting, Share, Upload } from '@element-plus/icons-vue';
 import { showContextMenu } from '@renderer/components/contextmenu/ContextMenuPlugin';
 import { Action } from '@renderer/lib/action';
-import { ElButton, ElInput, ElMessage, ElMessageBox } from 'element-plus';
-import { computed, ref, watch } from "vue";
-import { shareUserAppToPlaza } from './MyApp';
 import { getUserApps, UserAppInfo, userApps } from '@renderer/store/commonStore';
-import AppLogs from './AppLogs.vue';
+import { ElButton, ElInput, ElMessage, ElMessageBox } from 'element-plus';
 import type { AppVariable } from 'src/main/userApp/types';
-import { levelMap } from '@renderer/src/pages/flowHome/indexvue';
+import { computed, ref, watch } from "vue";
+import AppLogs from './AppLogs.vue';
+import { shareUserAppToPlaza } from './MyApp';
 
 const emit = defineEmits<{
     (e: 'toAppPlazas'): void
