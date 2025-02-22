@@ -8,6 +8,7 @@ import { shareUserAppToPlaza } from './MyApp';
 import { getUserApps, UserAppInfo, userApps } from '@renderer/store/commonStore';
 import AppLogs from './AppLogs.vue';
 import type { AppVariable } from 'src/main/userApp/types';
+import { levelMap } from '@renderer/src/pages/flowHome/indexvue';
 
 const emit = defineEmits<{
     (e: 'toAppPlazas'): void
@@ -218,6 +219,28 @@ async function editAppName(app: UserAppInfo) {
     }
 }
 
+// 改为使用 Map 存储每个应用的日志级别过滤器
+const appLogLevelFilters = ref(new Map<string, string[]>());
+
+function getAppLogLevelFilter(appId: string) {
+    if (!appLogLevelFilters.value.has(appId)) {
+        appLogLevelFilters.value.set(appId, ['info', 'warn', 'error', 'fatalError']);
+    }
+    return appLogLevelFilters.value.get(appId)!;
+}
+
+const logLevelOptions = [
+    { label: '调试', value: 'debug' },
+    { label: '信息', value: 'info' },
+    { label: '警告', value: 'warn' },
+    { label: '错误', value: 'error' },
+    { label: '致命', value: 'fatalError' }
+];
+
+function updateAppLogFilter(appId: string, value: string[]) {
+    appLogLevelFilters.value.set(appId, value);
+}
+
 </script>
 
 <template>
@@ -299,7 +322,29 @@ async function editAppName(app: UserAppInfo) {
                                 <div class="logs mt-2">
                                     <div class="flex justify-between items-center">
                                         <div>运行日志：</div>
-                                        <div class="py-1">
+                                        <div class="py-1 flex items-center gap-2">
+                                            <el-popover trigger="click" :width="200">
+                                                <template #reference>
+                                                    <el-button link type="primary">
+                                                        日志级别
+                                                        <el-icon class="ml-1"><Filter /></el-icon>
+                                                    </el-button>
+                                                </template>
+                                                <el-checkbox-group 
+                                                    :model-value="getAppLogLevelFilter(app.id)"
+                                                    @update:model-value="value => updateAppLogFilter(app.id, value)"
+                                                >
+                                                    <div class="flex flex-col gap-2">
+                                                        <el-checkbox 
+                                                            v-for="option in logLevelOptions" 
+                                                            :key="option.value"
+                                                            :label="option.value"
+                                                        >
+                                                            {{ option.label }}
+                                                        </el-checkbox>
+                                                    </div>
+                                                </el-checkbox-group>
+                                            </el-popover>
                                             <ElButton link type="primary" @click="() => {
                                                 showLogsMask = !showLogsMask;
                                                 if (showLogsMask) {
@@ -313,7 +358,10 @@ async function editAppName(app: UserAppInfo) {
                                             <ElButton link type="primary" @click="openLogsDir(app.id)">打开日志目录</ElButton>
                                         </div>
                                     </div>
-                                    <AppLogs :app-id="app.id" :rows="app.id === showLogsAppId ? 18 : 3"></AppLogs>
+                                    <AppLogs :app-id="app.id" 
+                                            :rows="app.id === showLogsAppId ? 18 : 3"
+                                            :level-filter="getAppLogLevelFilter(app.id)">
+                                    </AppLogs>
                                 </div>
                             </div>
 

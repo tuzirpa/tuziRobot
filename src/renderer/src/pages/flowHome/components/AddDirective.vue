@@ -47,63 +47,66 @@ nextTick(async () => {
             input.addConfig = addConfig;
         }
     }
-    if (!_directive.value.id){
-        setTimeout(() => {
-            //输入变量处理
-            for (const key in _directive.value.inputs) {
-                if (Object.prototype.hasOwnProperty.call(_directive.value.inputs, key)) {
-                    const input = _directive.value.inputs[key];
-                    //自动补全处理
-                    if (!input.value && input.addConfig.autoComplete) {
+   
+    setTimeout(() => {
+        //输入变量处理
+        for (const key in _directive.value.inputs) {
+            if (Object.prototype.hasOwnProperty.call(_directive.value.inputs, key)) {
+                const input = _directive.value.inputs[key];
+                //自动补全处理
+                if (!input.value && input.addConfig.autoComplete) {
+                    //编辑状态不需要自动补全
+                    if (!_directive.value.id){
                         //获取前置变量列表 在变量之后的不能作为输入然后倒序查找 实现最近使用变量优先
                         const beforeVariables = _variables.value.filter(item => item.before).reverse();
                         const variable = beforeVariables.find((item) => item.type === input.addConfig.filtersType);
                         input.value = variable?.name;
-                    } else {
-                        input.value = input.value || input.addConfig.defaultValue;
+                    }
+                } else {
+                    input.value = input.value || input.addConfig.defaultValue;
+                }
+
+
+                if (input.addConfig.isAdvanced) {
+                    advancedNum.value++;
+                }
+                if (input.addConfig.type === 'select') {
+
+                    if (input.addConfig.getOptions) {
+                        (async () => {
+                            const directive = _directive.value;
+                            const appInfo = curUserApp.value;
+                            const optionTuils = {
+                                getUserApps: async () => {
+                                    const userApps = await Action.getUserApps();
+                                    return userApps;
+                                }
+                            };
+                            const fun = new Function(`const fun = ${input.addConfig.getOptions};return fun.apply(null, arguments)`);
+                            input.addConfig.options = await fun(directive, appInfo, optionTuils);
+                        })();
                     }
 
+                }
+            }
+        }
 
-                    if (input.addConfig.isAdvanced) {
-                        advancedNum.value++;
-                    }
-                    if (input.addConfig.type === 'select') {
-
-                        if (input.addConfig.getOptions) {
-                            (async () => {
-                                const directive = _directive.value;
-                                const appInfo = curUserApp.value;
-                                const optionTuils = {
-                                    getUserApps: async () => {
-                                        const userApps = await Action.getUserApps();
-                                        return userApps;
-                                    }
-                                };
-                                const fun = new Function(`const fun = ${input.addConfig.getOptions};return fun.apply(null, arguments)`);
-                                input.addConfig.options = await fun(directive, appInfo, optionTuils);
-                            })();
-                        }
-
+        //输出变量处理
+        for (const key in _directive.value.outputs) {
+            if (Object.prototype.hasOwnProperty.call(_directive.value.outputs, key)) {
+                const output = _directive.value.outputs[key];
+                if (!output.name) {
+                    //未设置 获取默认值 如果默认值有被设置过 则加上序号
+                    output.name = output.name || output.addConfig?.defaultValue;
+                    let index = _variables.value.findLastIndex((item) => item.name.startsWith(output.name));
+                    if (index !== -1) {
+                        output.name = output.name + (index++);
                     }
                 }
             }
-
-            //输出变量处理
-            for (const key in _directive.value.outputs) {
-                if (Object.prototype.hasOwnProperty.call(_directive.value.outputs, key)) {
-                    const output = _directive.value.outputs[key];
-                    if (!output.name) {
-                        //未设置 获取默认值 如果默认值有被设置过 则加上序号
-                        output.name = output.name || output.addConfig?.defaultValue;
-                        let index = _variables.value.findLastIndex((item) => item.name.startsWith(output.name));
-                        if (index !== -1) {
-                            output.name = output.name + (index++);
-                        }
-                    }
-                }
-            }
-            }, 300);
-    }
+        }
+        }, 300);
+    
     
 });
 

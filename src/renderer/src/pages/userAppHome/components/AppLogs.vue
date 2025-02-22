@@ -6,7 +6,8 @@ import { onMounted, onUnmounted, ref } from 'vue';
 
 const props = withDefaults(defineProps<{
     appId: string,
-    rows?: number
+    rows?: number,
+    levelFilter: string[]
 }>(), {
     rows: 3
 });
@@ -15,7 +16,8 @@ const runLogs = ref<any[]>([]);
 
 type LogMessageApp = LogMessage & {
     appId: string,
-    timeString: string
+    timeString: string,
+    seqNumber?: number
 }
 const levelMap = {
     debug: '调试',
@@ -24,31 +26,54 @@ const levelMap = {
     error: '错误',
     fatalError: '致命'
 };
+
+const logCounter = ref(0);
+
 function log2Content(logMessage: LogMessageApp) {
     const levelStr = levelMap[logMessage.level];
     const flowAliasName = logMessage.data?.flowAliasName ?? '';
     const blockLine = logMessage.data?.blockLine ?? '';
     const message = logMessage.message;
+    const seqNumber = logMessage.seqNumber?.toString().padStart(4, ' ') || ''; // 使用消息自带序号
     const content =
         // @ts-ignore
-        `[${levelStr}] [${flowAliasName}:(行: ${blockLine})] [${logMessage.timeString}]:` +
+        `${seqNumber} [${levelStr}] [${flowAliasName}:(行: ${blockLine})] [${logMessage.timeString}]:` +
         message;
     return content;
 }
+
 const acceptLogs = (_event, log: LogMessageApp | LogMessageApp[]) => {
-    console.log(log, 'run-logs -- 日志窗口');
+    console.log(log,props.levelFilter, 'run-logs -- 日志窗口');
 
     if (Array.isArray(log)) {
+        log = log.filter(item => props.levelFilter.includes(item.level));
         log.forEach((item) => {
             item.timeString = new Date(item.time).toLocaleString();
+            if (item.data?.directiveName === 'startRun') {
+                logCounter.value = 0;
+            }
+            item.seqNumber = ++logCounter.value;
         });
         //倒序
         log.reverse();
         runLogs.value.unshift(...log);
+        // 只保留最后500条日志
+        if (runLogs.value.length > 500) {
+            runLogs.value = runLogs.value.slice(0, 500);
+        }
     } else {
         if (log.appId !== props.appId) return;
+        if (!props.levelFilter.includes(log.level)) return;
         log.timeString = new Date(log.time).toLocaleString();
+        if (log.data?.directiveName === 'startRun') {
+            logCounter.value = 0;
+        }
+        log.seqNumber = ++logCounter.value;
         runLogs.value.unshift(log);
+        // 只保留最后500条日志
+        if (runLogs.value.length > 500) {
+            runLogs.value = runLogs.value.slice(0, 500);
+        }
     }
     content.value = runLogs.value.map(log2Content).join('\n');
 }
@@ -64,6 +89,8 @@ onUnmounted(() => {
 
 // 添加逻辑
 const content = ref('')
+
+
 
 </script>
 

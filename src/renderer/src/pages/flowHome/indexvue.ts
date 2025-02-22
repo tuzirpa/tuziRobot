@@ -120,14 +120,21 @@ export function startRunLogs() {
             //倒序
             log.reverse();
             runLogs.value.unshift(...log);
+            // 只保留最后500条日志
+            if (runLogs.value.length > 500) {
+                runLogs.value = runLogs.value.slice(0, 500);
+            }
         } else {
             log.time = new Date(log.time).toLocaleString();
             runLogs.value.unshift(log);
+            // 只保留最后500条日志
+            if (runLogs.value.length > 500) {
+                runLogs.value = runLogs.value.slice(0, 500);
+            }
         }
     });
     return () => {
         console.log('移除监听');
-
         window.electron.ipcRenderer.removeAllListeners('run-logs');
     };
 }
