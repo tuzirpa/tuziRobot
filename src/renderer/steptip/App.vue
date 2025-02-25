@@ -45,6 +45,10 @@ function runStep(_event: any, step: LogMessage | LogMessage[]) {
     console.log('run step', step);
     if (Array.isArray(step)) {
         steps.value.push(...step);
+        // 只保留最后1000条日志
+        if (steps.value.length > 1000) {
+            steps.value = steps.value.slice(-1000);
+        }
     } else {
         if (step.data?.directiveName === 'startRun') {
             isRun.value = true;
@@ -60,8 +64,11 @@ function runStep(_event: any, step: LogMessage | LogMessage[]) {
             isRun.value = false;
         }
         steps.value.push(step);
+        // 只保留最后1000条日志
+        if (steps.value.length > 1000) {
+            steps.value = steps.value.slice(-1000);
+        }
     }
-
 }
 
 window.electron.ipcRenderer.on('run-step', runStep);

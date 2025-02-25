@@ -1,6 +1,6 @@
 {
     "name": "tuzi_rpa",
-    "version": "2.3.1",
+    "version": "2.3.2",
     "description": "一个可以搭积木方式编程的自动化Rpa软件",
     "main": "./out/main/index.js",
     "author": "tuzirpa.vtool.vip",

@@ -4,7 +4,7 @@ import type { AppVariable } from 'src/main/userApp/types';
 import { ElInput, ElButton, ElDialog, ElForm, ElFormItem } from 'element-plus';
 import type { MainUserApp } from './types';
 import { QuestionFilled } from '@element-plus/icons-vue';
-
+import { ElMessage } from 'element-plus';
 
 // 添加逻辑
 
@@ -41,9 +41,10 @@ let editIndex = -1;
 function handleClick(row: AppVariable) {
     globalVariableForm.value = {
         name: row.name,
-        value: row.value,
+        value: row.type === 'boolean' ? String(row.value) : row.value,
         display: row.display ?? '',
-        exposed: row.exposed ?? false
+        exposed: row.exposed ?? false,
+        type: row.type
     };
     const gvarIndex = props.userAppDetail.globalVariables.findIndex(item => item.name === globalVariableForm.value.name);
     editIndex = gvarIndex;
@@ -59,7 +60,33 @@ function handleDelete(row: AppVariable) {
     }
 }
 
-function addGlobalVariable() {
+function validateAndConvertValue(value: string, type: string) {
+    try {
+        switch (type) {
+            case 'number':
+                const num = Number(value);
+                if (isNaN(num)) throw new Error('无效的数字');
+                return num;
+            case 'boolean':
+                if (value.toLowerCase() === 'true') return true;
+                if (value.toLowerCase() === 'false') return false;
+                throw new Error('无效的布尔值');
+            case 'array':
+            case 'object':
+                return JSON.parse(value);
+            default:
+                return value;
+        }
+    } catch (error: any) {
+        ElMessage.error(`值格式错误: ${error.message}`);
+        return null;
+    }
+}
+
+function handleAddVariable() {
+    const value = validateAndConvertValue(globalVariableForm.value.value, globalVariableForm.value.type);
+    if (value === null) return;
+
     const gvars: AppVariable[] = [];
     gvars.push(...props.userAppDetail.globalVariables);
     if (editIndex > -1) {
@@ -67,6 +94,7 @@ function addGlobalVariable() {
         gvars[editIndex].value = globalVariableForm.value.value;
         gvars[editIndex].display = globalVariableForm.value.display;
         gvars[editIndex].exposed = globalVariableForm.value.exposed;
+        gvars[editIndex].type = globalVariableForm.value.type;
         
         emit('updateGlobalVariable', gvars);
         globalVariableDialogVisible.value = false;
@@ -75,14 +103,15 @@ function addGlobalVariable() {
             name: '',
             value: '',
             display: '',
-            exposed: false
+            exposed: false,
+            type: 'string'
         }
         return;
     }
     gvars.push({
         name: globalVariableForm.value.name,
-        value: globalVariableForm.value.value,
-        type: 'string',
+        value: value,
+        type: globalVariableForm.value.type,
         display: globalVariableForm.value.display,
         exposed: globalVariableForm.value.exposed
     });
@@ -93,7 +122,8 @@ function addGlobalVariable() {
         name: '',
         value: '',
         display: '',
-        exposed: false
+        exposed: false,
+        type: 'string'
     }
 }
 
@@ -103,7 +133,8 @@ const globalVariableForm = ref({
     name: '',
     value: '',
     display: '',
-    exposed: false
+    exposed: false,
+    type: 'string'
 });
 
 const globalVariableRules = {
@@ -129,7 +160,25 @@ function handleVariableChange(row: AppVariable) {
     emit('updateGlobalVariable', gvars);
 }
 
+// 定义支持的数据类型
+const dataTypes = [
+    { label: '字符串', value: 'string' },
+    { label: '数字', value: 'number' },
+    { label: '布尔值', value: 'boolean' },
+    { label: '数组', value: 'array' },
+    { label: '对象', value: 'object' }
+];
 
+// 格式化显示值
+function formatDisplayValue(value: any, type: string) {
+    switch (type) {
+        case 'array':
+        case 'object':
+            return JSON.stringify(value, null, 2);
+        default:
+            return String(value);
+    }
+}
 
 </script>
 
@@ -146,7 +195,14 @@ function handleVariableChange(row: AppVariable) {
         <div class="global-variable-list flex-1 flex flex-col gap-1 overflow-auto">
             <el-table :data="appGlobalVariables" :border="true" style="width: 100%">
                 <el-table-column prop="name" label="变量名" show-overflow-tooltip width="80" />
-                <el-table-column prop="value" label="默认值" show-overflow-tooltip />
+                <el-table-column prop="value" label="默认值" show-overflow-tooltip >
+                    
+                </el-table-column>
+                <el-table-column prop="type" label="类型" width="100">
+                    <template #default="scope">
+                        {{ dataTypes.find(t => t.value === scope.row.type)?.label || '字符串' }}
+                    </template>
+                </el-table-column>
                 <el-table-column prop="exposed" label="暴露配置" width="100">
                     <template #header>
                         <el-tooltip
@@ -181,8 +237,37 @@ function handleVariableChange(row: AppVariable) {
                     <ElFormItem label="变量名" prop="name">
                         <ElInput v-model="globalVariableForm.name" placeholder="请输入全局变量名称"></ElInput>
                     </ElFormItem>
-                    <ElFormItem label="默认值" prop="value">
-                        <ElInput v-model="globalVariableForm.value" placeholder="请输入全局变量值"></ElInput>
+                    <ElFormItem label="类型">
+                        <el-select v-model="globalVariableForm.type">
+                            <el-option
+                                v-for="type in dataTypes"
+                                :key="type.value"
+                                :label="type.label"
+                                :value="type.value"
+                            />
+                        </el-select>
+                    </ElFormItem>
+                    <ElFormItem label="值">
+                        <template v-if="globalVariableForm.type === 'boolean'">
+                            <el-radio-group v-model="globalVariableForm.value">
+                                <el-radio label="true">True</el-radio>
+                                <el-radio label="false">False</el-radio>
+                            </el-radio-group>
+                        </template>
+                        <template v-else-if="globalVariableForm.type === 'array' || globalVariableForm.type === 'object'">
+                            <el-input
+                                type="textarea"
+                                v-model="globalVariableForm.value"
+                                :rows="4"
+                                placeholder="请输入有效的 JSON"
+                            />
+                        </template>
+                        <template v-else>
+                            <el-input
+                                v-model="globalVariableForm.value"
+                                :placeholder="`请输入${globalVariableForm.type === 'number' ? '数字' : '值'}`"
+                            />
+                        </template>
                     </ElFormItem>
                     <ElFormItem label="注释" prop="display">
                         <ElInput v-model="globalVariableForm.display" placeholder="请输入全局变量注释"></ElInput>
@@ -202,7 +287,7 @@ function handleVariableChange(row: AppVariable) {
                 </ElForm>
             </div>
             <template #footer>
-                <ElButton type="primary" @click="addGlobalVariable">确定</ElButton>
+                <ElButton type="primary" @click="handleAddVariable">确定</ElButton>
                 <ElButton @click="globalVariableDialogVisible = false">取消</ElButton>
             </template>
         </ElDialog>
