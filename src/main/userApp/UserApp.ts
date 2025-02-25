@@ -277,8 +277,12 @@ export default class UserApp {
         mainJsContent.push(`let { join } = require("path");`);
         mainJsContent.push(`globalThis._block = {};`);
         this.globalVariables.forEach((globalVar) => {
+            let value = globalVar.value;
+            if (globalVar.type === 'string') {
+                value = `'${value.replace(/'/g, "\\'")}'`;
+            }
             mainJsContent.push(
-                `globalThis._GLOBAL_${globalVar.name} = '${globalVar.value}';//${globalVar.display}`
+                `globalThis._GLOBAL_${globalVar.name} = ${value}; // ${globalVar.display}`
             );
         });
         mainJsContent.push(

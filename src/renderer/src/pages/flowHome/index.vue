@@ -694,7 +694,7 @@ async function saveGlobalVariable(gvars: AppVariable[]) {
                                             <template #default="scope">
                                                 <a class="cursor-pointer underline decoration-1 text-blue-500"
                                                     @click="flowEditRef?.scrollIntoRow(scope.row.flowName, scope.row.line)">
-                                                    {{ scope.row.line }}
+                                                    {{ scope.row.flowAliasName }}: {{ scope.row.line }} 
                                                 </a>
                                             </template>
                                         </ElTableColumn>

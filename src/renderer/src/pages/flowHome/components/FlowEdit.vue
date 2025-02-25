@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DirectiveTree, FlowVariable } from 'src/main/userApp/types';
 import { sleep, uuid } from '@shared/Utils';
-import { watch, computed, nextTick, onMounted, ref } from 'vue';
+import { watch, computed, nextTick, onMounted, ref, onUnmounted } from 'vue';
 import { dragData } from '../dragVar';
 import { showContextMenu } from '@renderer/components/contextmenu/ContextMenuPlugin';
 import { ElCascader, ElMessage, ElScrollbar } from 'element-plus';
@@ -16,6 +16,7 @@ import { showContextFlowMenu, checkError } from './FlowEditOps';
 import { curShowFlowErrors } from './FlowEditStore';
 import { DirectiveData, OpenFile } from './types'
 import { closeFile, curWorkStatus } from '../indexvue'
+import SearchVariable from './SearchVariable.vue';
 
 const props = defineProps<{
     flows: Flow[];
@@ -112,31 +113,38 @@ watch(() => curWorkStatus.value.activeFlow, () => {
  * 指令描述
  * @param block 指令数据
  */
-function commentCompute(block: DirectiveData) {
+function commentCompute(block: DirectiveData, index: number) {
     if (block.comment) {
-        const comment = block.comment.replace(/\${.*?}/g, (substring: string, ..._args: any[]) => {
-            const valKey = substring.substring(2, substring.length - 1);
-            let val = '';
-            for (const key in block.inputs) {
-                if (Object.prototype.hasOwnProperty.call(block.inputs, key)) {
-                    if (key === valKey) {
-                        val = block.inputs[key].display || block.inputs[key].value;
-                        break;
-                    }
-                }
+        const context = {}
+        for (const key in block.inputs) {
+            if (Object.prototype.hasOwnProperty.call(block.inputs, key)) {
+                context[key] = block.inputs[key].display || block.inputs[key].value;
             }
-            if (val === '') {
-                for (const key in block.outputs) {
-                    if (Object.prototype.hasOwnProperty.call(block.outputs, key)) {
-                        if (key === valKey) {
-                            val = block.outputs[key].name;
-                        }
-                    }
-                }
+        }
+        for (const key in block.outputs) {
+            if (Object.prototype.hasOwnProperty.call(block.outputs, key)) {
+                context[key] = block.outputs[key].name;
+            }
+        }
+        let varsCode = ''
+        for (const key in context) {
+            varsCode += `let ${key} = context['${key}'] || '';\n`;
+        }
+        const comment = block.comment.replace(/\${.*?}/g, (substring: string, ..._args: any[]) => {
+            const code = `(function(){${varsCode} \n return \`${substring}\`}())`;
+            let val = '';
+            try {
+                val = eval(code);
+            } catch (error) {
+                console.error(`${block.displayName} 第${index + 1}行`, error);
             }
             if (val) {
-                return `<span class="variable">${val}</span>`;
+                // 检查是否是全局变量
+                const isGlobal = val.toString().startsWith('_GLOBAL_');
+                const displayVal = isGlobal ? `🌐 ${val}` : val;
+                return `<span class="variable ctrl-cursor-pointer ${isGlobal ? ' global' : ''}" onclick="searchVariableToLine('${encodeURIComponent(val)}')">${displayVal}</span>`;
             }
+            
             return '';
         });
         return comment;
@@ -154,7 +162,7 @@ const blocks = computed(() => {
     }
     let pdLvn = 0;
     curOpenFile.value.blocks.forEach((block, index) => {
-        block.commentShow = commentCompute(block);
+        block.commentShow = commentCompute(block, index);
         const errorObj = curShowFlowErrors.value.find((item) => curOpenFile.value.name === item.flowName && item.line === index + 1);
         block.error = errorObj?.message || '';
         block.errorLevel = errorObj?.errorLevel;
@@ -177,7 +185,7 @@ const blocks = computed(() => {
 
         if (block.isControl) {
             curOpenFile.value.blocks[index].isFold = true;
-            curOpenFile.value.blocks[index].open = curOpenFile.value.blocks[index].open === undefined ? true : curOpenFile.value.blocks[index].open;
+            curOpenFile.value.blocks[index].open = curOpenFile.value.blocks[index].open ?? true;
             pdLvn++;
         }
     });
@@ -250,6 +258,8 @@ function foldClick(blockParam: DirectiveData, _index: any) {
             item.hide = false;
         });
     }
+    console.log(curBlocks.value);
+    
 }
 
 /**
@@ -283,15 +293,26 @@ async function flowEditDrag(event: any) {
 
     if (dragData.value.add) {
         oldIndex = oldIndex === -1 ? curOpenFile.value.blocks.length - 1 : oldIndex;
+        //这里需要判断当前拖拽块的上一个块是否是折叠节点，如果是折叠节点，需要获取节点的最后一个子节点
+        const lastBlock = curOpenFile.value.blocks.find((item) => item.id === dragenterBlock.value?.id);
+        if (lastBlock && lastBlock.isFold && !lastBlock.open) {
+
+            const { subBlocks } = getFoldSub(lastBlock);
+            oldIndex = curOpenFile.value.blocks.findIndex((item) => item.id === subBlocks[subBlocks.length - 1].id);
+        }
         // curOpenFile.value.blocks.splice(oldIndex + 1, 0, directive);
         addBlock(dragData.value.data, oldIndex + 1);
     } else {
         /**
          * 移动，中间节点往后推
          */
-
+        //这里需要判断当前拖拽块的上一个块是否是折叠节点，如果是折叠节点，需要获取节点的最后一个子节点
+        const lastBlock = curOpenFile.value.blocks.find((item) => item.id === dragenterBlock.value?.id);
+        if (lastBlock && lastBlock.isFold && !lastBlock.open) {
+            const { subBlocks } = getFoldSub(lastBlock);
+            oldIndex = curOpenFile.value.blocks.findIndex((item) => item.id === subBlocks[subBlocks.length - 1].id);
+        }
         //把对应位置节点替换成站位元素 然后插入移动元素到对应位置，最后删除站位元素
-
         // if (!curBlocks.value.some((item) => item.id === dragenterBlock.value?.id)) {
         const tempBlocks = JSON.parse(JSON.stringify(curOpenFile.value.blocks));
         curBlocks.value.forEach((item) => {
@@ -301,9 +322,9 @@ async function flowEditDrag(event: any) {
                 }
             });
         });
-        curBlocks.value.forEach((item) => {
-            item.hide = false;
-        });
+        // curBlocks.value.forEach((item) => {
+        //     item.hide = false;
+        // });
         if (dragDirection.value === 'bottom') {
             tempBlocks.splice(oldIndex + 1, 0, ...curBlocks.value);
         } else {
@@ -368,6 +389,12 @@ function blockDragStart(block: DirectiveData, _index: number) {
  * @param block 当前点击的块
  */
 function toggleCheckBlock(block: DirectiveData) {
+    //如果拖拽的是文件夹节点 需要单独处理
+    if (block.isFold && !block.open) {
+        const { subBlocks } = getFoldSub(block);
+        curBlocks.value = [block, ...subBlocks];
+        return;
+    }
     if (curBlocks.value.some((item) => item.id === block.id)) {
         // 循环当前选中块中是否有折叠节点
         const foldBlocks = curBlocks.value.filter((item) => item.isFold && !item.open);
@@ -379,12 +406,7 @@ function toggleCheckBlock(block: DirectiveData) {
             });
         }
     } else {
-        if (block.isFold && !block.open) {
-            const { subBlocks } = getFoldSub(block);
-            curBlocks.value = [block, ...subBlocks];
-        } else {
-            curBlocks.value = [block];
-        }
+        curBlocks.value = [block];
     }
 }
 
@@ -547,10 +569,10 @@ async function pasteBlocks() {
     const clipboardBlocks = JSON.parse(clipboardText);
     const newBlocks = clipboardBlocks.map((block) => {
         block.id = uuid();
-        block.pdLvn = 0;
-        block.isFold = false;
-        block.open = false;
-        block.hide = false;
+        // block.pdLvn = 0;
+        // block.isFold = false;
+        // block.open = false;
+        // block.hide = false;
         return block;
     });
     // 粘贴到当前最后选中块的后面
@@ -874,6 +896,8 @@ const redo = () => {
 
 const editScrollNode = ref<HTMLElement>();
 async function scrollIntoRow(flowName: string, rowNum: number) {
+    console.log(flowName, rowNum, '滚动到行');
+    
     //判断当前文件是否打开，未打开给他打开，然后滚动到指定行
     const opened = curWorkStatus.value.openedFlows.includes(flowName);
     if (!opened) {
@@ -898,6 +922,15 @@ async function scrollIntoRow(flowName: string, rowNum: number) {
     });
 
     curBlocks.value = [curOpenFile.value.blocks[rowNum - 1]];
+
+    // 添加高亮效果
+    const element = document.querySelector(`.directive-block:nth-child(${rowNum})`);
+    if (element) {
+        element.classList.add('highlight');
+        setTimeout(() => {
+            element.classList.remove('highlight');
+        }, 2000);
+    }
 }
 
 /**
@@ -966,6 +999,143 @@ defineExpose({
     addBlock,
     scrollIntoRow
 });
+
+const searchDialogVisible = ref(false);
+const ctrlKeyDown = ref(false);
+
+function handleKeydown(e: KeyboardEvent) {
+    if (e.ctrlKey) {
+        ctrlKeyDown.value = true;
+    }
+    if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        searchDialogVisible.value = true;
+    }
+}
+
+function handleKeyup(e: KeyboardEvent) {
+    if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
+        ctrlKeyDown.value = false;
+    }
+}
+
+onMounted(() => {
+    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('keyup', handleKeyup);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleKeydown);
+    window.removeEventListener('keyup', handleKeyup);
+});
+
+function scrollToLine(index: number, flowName: string) {
+    console.log(index, '滚动到行');
+    index = index + 1;
+    scrollIntoRow(flowName, index);
+    
+}
+
+const searchVariableRef = ref();
+
+function searchVariableToLine(text: string) {
+    if(!ctrlKeyDown.value) return;
+    if (!text) return;
+    text = decodeURIComponent(text);
+    
+    // 处理变量占位符
+    let searchText = text;
+    if (text.startsWith('${') && text.endsWith('}')) {
+        searchText = text.slice(2, -1); // 移除 ${ 和 }
+    }
+    
+    console.log(searchText, '搜索变量');
+
+    if (searchText.startsWith('_GLOBAL_')) {
+        ElMessage.info('全局变量 不支持跳转');
+        return;
+    }
+
+    const searchLowerText = searchText.toLowerCase();
+    const results: {index: number, line: number}[] = [];
+    
+    // 只搜索输出变量的定义位置
+    curOpenFile.value.blocks.forEach((block, index) => {
+        for (const key in block.outputs) {
+            const name = block.outputs[key].name;
+            if (name?.toString().toLowerCase() === searchLowerText) {
+                results.push({ index, line: index });
+                break;
+            }
+        }
+    });
+
+    if (!results.length) {
+        ElMessage.info('未找到变量定义');
+        return;
+    }
+    
+    if (results.length === 1) {
+        // 直接跳转到定义位置
+        setTimeout(() => {
+            scrollToLine(results[0].index, curOpenFile.value.name);
+        }, 100);
+    } else {
+        // 打开搜索框并显示所有定义位置
+        searchDialogVisible.value = true;
+        nextTick(() => {
+            // 调用子组件的方法进行搜索
+            searchVariableRef.value?.searchVariableByType(text, 'output');
+        });
+    }
+}
+
+// 将函数挂载到 window 上以供 onclick 调用
+(window as any).searchVariableToLine = searchVariableToLine;
+
+// 修改传递给 SearchVariable 的数据
+const searchData = computed(() => {
+    return {
+        flows: props.flows,
+        appInfo: props.appInfo,
+        currentFlow: curOpenFile.value.name  // 添加当前流程名
+    };
+});
+
+// 修改跳转逻辑
+function handleSearchResult(index: number, flowName: string) {
+    scrollToLine(index, flowName);
+}
+
+// 定义常用指令列表
+const directivePrompts = [
+    '打印',
+    '变量',
+    '创建浏览器',
+    '点击',
+    '等待',
+    '输入',
+    'if',
+    'else',
+    'for',
+    'while',
+    'try',
+    'catch',
+    'throw'
+];
+
+
+// 处理关键词点击
+function handleKeywordClick(keyword: string) {
+    const input = document.querySelector('.addBlockDialog input') as HTMLInputElement;
+    if (input) {
+        input.value = keyword;
+        input.dispatchEvent(new Event('input'));
+    }
+}
+
+// 添加 directiveCascader 引用
+const directiveCascader = ref();
 </script>
 
 <template>
@@ -1079,7 +1249,7 @@ defineExpose({
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div class="description flex-1 ml-6 text-xs text-gray-400 truncate"
+                                                <div class="description flex-1 ml-6 text-xs text-gray-400 truncate" :class="{ 'ctrlKeyDown': ctrlKeyDown }"
                                                     v-html="element.commentShow"></div>
                                             </div>
                                         </div>
@@ -1109,12 +1279,33 @@ defineExpose({
             </div>
         </div>
         <!-- 添加指令弹框 -->
-        <el-dialog v-model="addBlockDialogVisible" title="添加指令" @opened="addBlockDialogOpened" width="500" align-center
-            draggable>
-            <div class="flex flex-col">
-                <ElCascader class="addBlockDialog" ref="directiveCascader" v-model="addBlockDirective"
-                    placeholder="选择要添加的指令" @change="addBlockComfig" :options="directivesData" filterable
-                    :filter-method="filterMethod" clearable autofocus />
+        <el-dialog v-model="addBlockDialogVisible" title="添加指令" @opened="addBlockDialogOpened" width="500" align-center draggable>
+            <div class="flex flex-col gap-4">
+                <!-- 添加搜索提示词 -->
+                <div class="text-xs text-gray-400">
+                    搜索提示：
+                    <span
+                        v-for="prompt in directivePrompts"
+                        :key="prompt"
+                        class="keyword-tag mx-1 cursor-pointer hover:text-blue-500"
+                        @click="handleKeywordClick(prompt)"
+                    >
+                        {{ prompt }}
+                    </span>
+                </div>
+
+                <ElCascader
+                    class="addBlockDialog"
+                    ref="directiveCascader"
+                    v-model="addBlockDirective"
+                    placeholder="选择要添加的指令"
+                    @change="addBlockComfig"
+                    :options="directivesData"
+                    filterable
+                    :filter-method="filterMethod"
+                    clearable
+                    autofocus
+                />
             </div>
             <template #footer>
                 <div class="dialog-footer">
@@ -1136,11 +1327,24 @@ defineExpose({
                 </div>
             </template>
         </el-dialog>
+        <SearchVariable
+            v-model:show="searchDialogVisible"
+            :search-data="searchData"
+            @scroll-to-line="handleSearchResult"
+            ref="searchVariableRef"
+        />
     </div>
 </template>
 
+<style>
+.ctrlKeyDown .ctrl-cursor-pointer{
+    cursor: pointer;
+}
+
+</style>
+
 <style lang="less" scoped>
-// 添加样式
+
 
 .row-number {
     position: relative;
@@ -1157,6 +1361,27 @@ defineExpose({
         background-color: rgb(209 213 219);
     }
 }
+
+.search-results {
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    
+    .result-item {
+        border-bottom: 1px solid #ebeef5;
+        &:last-child {
+            border-bottom: none;
+        }
+    }
+}
+.highlight {
+    animation: blink-animation 1s infinite;
+}
+
+@keyframes blink-animation {
+    0% { background-color: rgba(255, 0, 0, 0.959); }
+    50% { background-color: transparent; }
+    100% { background-color: rgba(255, 0, 0, 0.959); }
+}
 </style>
 <style>
 .color,
@@ -1171,6 +1396,11 @@ defineExpose({
     border-radius: 9999px;
     background-color: #f0f0f0;
     padding: 2px 4px;
+}
+
+.variable.global {
+    background-color: #e6f4ff;  /* 全局变量使用不同的背景色 */
+    border: 1px dashed #0c89ff;  /* 添加虚线边框 */
 }
 
 .error {
@@ -1189,3 +1419,12 @@ defineExpose({
     border-color: #ff9900;
 }
 </style>
+<script lang="ts">
+// 声明全局函数类型
+declare global {
+    interface Window {
+        searchVariableToLine: (text: string) => void;  // 移除 type 参数
+    }
+}
+</script>
+
