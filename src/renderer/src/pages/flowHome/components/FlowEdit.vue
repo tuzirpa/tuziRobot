@@ -258,6 +258,10 @@ function foldClick(blockParam: DirectiveData, _index: any) {
             item.hide = false;
         });
     }
+    //保存当前文件
+    const saveMsg = blockParam.isFold ? '折叠节点' : '展开节点';
+    saveCurFlow(saveMsg);
+
     console.log(curBlocks.value);
     
 }
