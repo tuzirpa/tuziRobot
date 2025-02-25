@@ -169,16 +169,6 @@ const dataTypes = [
     { label: '对象', value: 'object' }
 ];
 
-// 格式化显示值
-function formatDisplayValue(value: any, type: string) {
-    switch (type) {
-        case 'array':
-        case 'object':
-            return JSON.stringify(value, null, 2);
-        default:
-            return String(value);
-    }
-}
 
 </script>
 
