@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup lang="tsx">
 import type { DirectiveTree, FlowVariable } from 'src/main/userApp/types';
 import { sleep, uuid } from '@shared/Utils';
 import { watch, computed, nextTick, onMounted, ref, onUnmounted } from 'vue';
@@ -17,7 +17,6 @@ import { curShowFlowErrors } from './FlowEditStore';
 import { DirectiveData, OpenFile } from './types'
 import { closeFile, curWorkStatus } from '../indexvue'
 import SearchVariable from './SearchVariable.vue';
-
 const props = defineProps<{
     flows: Flow[];
     breakpointData: IBreakpoint;
@@ -90,8 +89,7 @@ const openFiles = computed<OpenFile[]>(() => {
     return opFiles;
 });
 
-const aaa = new Set();
-const editFiles = ref(aaa);
+const editFiles = ref(new Set());
 
 
 const curOpenFile = ref<OpenFile>(files.value[0]);
@@ -139,18 +137,18 @@ function commentCompute(block: DirectiveData, index: number) {
                 console.error(`${block.displayName} 第${index + 1}行`, error);
             }
             if (val) {
-                // 检查是否是全局变量
                 const isGlobal = val.toString().startsWith('_GLOBAL_');
                 const displayVal = isGlobal ? `🌐 ${val}` : val;
-                return `<span class="variable ctrl-cursor-pointer ${isGlobal ? ' global' : ''}" onclick="searchVariableToLine('${encodeURIComponent(val)}')">${displayVal}</span>`;
+                return `<span class="variable ctrl-cursor-pointer${isGlobal ? ' global' : ''}" 
+                onclick="searchVariableToLine('${encodeURIComponent(val)}')">${displayVal}</span>`;
             }
-            
             return '';
         });
-        return comment;
-    } else {
-        return block.name;
+
+        return comment;  // 返回 HTML 字符串
     }
+    
+    return block.name;  // 返回纯文本
 }
 
 /**
@@ -187,6 +185,12 @@ const blocks = computed(() => {
             curOpenFile.value.blocks[index].isFold = true;
             curOpenFile.value.blocks[index].open = curOpenFile.value.blocks[index].open ?? true;
             pdLvn++;
+        }
+    });
+
+    props.appInfo.flows.forEach((item) => {
+        if (item.name === curOpenFile.value?.name) {
+            item.blocks = curOpenFile.value.blocks;
         }
     });
 
@@ -249,6 +253,10 @@ function foldClick(blockParam: DirectiveData, _index: any) {
     if (!blockParam.open) {
         const { foldNum, subBlocks } = getFoldSub(blockParam);
         subBlocks.forEach((item) => {
+            //如果子节点是折叠节点，则打开,不然这边会乱 里面的折叠会无效，如果要处理
+            if (item.isFold) {
+                item.open = true;
+            }
             item.hide = true;
         });
         blockParam.foldDesc = `${foldNum} 条指令`;
@@ -1253,8 +1261,11 @@ const directiveCascader = ref();
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div class="description flex-1 ml-6 text-xs text-gray-400 truncate" :class="{ 'ctrlKeyDown': ctrlKeyDown }"
-                                                    v-html="element.commentShow"></div>
+                                                <div class="description flex-1 ml-6 text-xs text-gray-400 truncate" 
+                                                     :class="{ 'ctrlKeyDown': ctrlKeyDown }"
+                                                     v-html="element.commentShow">
+                                                </div>
+                                                
                                             </div>
                                         </div>
                                         <div @click="addBlockDialogVisible = true"
@@ -1423,11 +1434,11 @@ const directiveCascader = ref();
     border-color: #ff9900;
 }
 </style>
-<script lang="ts">
+<script lang="tsx">
 // 声明全局函数类型
 declare global {
     interface Window {
-        searchVariableToLine: (text: string) => void;  // 移除 type 参数
+        searchVariableToLine: (text: string) => void;
     }
 }
 </script>

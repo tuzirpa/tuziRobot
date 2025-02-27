@@ -279,7 +279,7 @@ export default class UserApp {
         this.globalVariables.forEach((globalVar) => {
             let value = globalVar.value;
             if (globalVar.type === 'string') {
-                value = `'${value.replace(/'/g, "\\'")}'`;
+                value = `${JSON.stringify(value)}`;
             }
             mainJsContent.push(
                 `globalThis._GLOBAL_${globalVar.name} = ${value}; // ${globalVar.display}`

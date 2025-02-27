@@ -254,6 +254,7 @@ const dataTypes = [
                         </template>
                         <template v-else>
                             <el-input
+                                type="textarea"
                                 v-model="globalVariableForm.value"
                                 :placeholder="`请输入${globalVariableForm.type === 'number' ? '数字' : '值'}`"
                             />
