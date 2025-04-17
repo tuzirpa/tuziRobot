@@ -110,7 +110,7 @@ function handleAddVariable() {
     }
     gvars.push({
         name: globalVariableForm.value.name,
-        value: value,
+        value: globalVariableForm.value.value,
         type: globalVariableForm.value.type,
         display: globalVariableForm.value.display,
         exposed: globalVariableForm.value.exposed

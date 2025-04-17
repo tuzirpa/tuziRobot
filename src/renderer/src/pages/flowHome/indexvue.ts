@@ -111,11 +111,11 @@ export const showRunLogs = computed(() => {
 });
 
 export function startRunLogs() {
-    window.electron.ipcRenderer.on('run-logs', (_event, log) => {
-        console.log(log, 'run-logs');
+    const unlisten = window.electron.ipcRenderer.on(`run-logs-${curUserApp.value.id}`, (_event, log) => {
         if (Array.isArray(log)) {
-            log.forEach((item) => {
+            log = log.filter((item) => item.appId === curUserApp.value.id).filter(item => runLogsFilter.value.includes(item.level)).map((item) => {
                 item.time = new Date(item.time).toLocaleString();
+                return item;
             });
             //倒序
             log.reverse();
@@ -125,6 +125,8 @@ export function startRunLogs() {
                 runLogs.value = runLogs.value.slice(0, 500);
             }
         } else {
+            if (log.appId !== curUserApp.value.id) return;
+            if (!runLogsFilter.value.includes(log.level)) return;
             log.time = new Date(log.time).toLocaleString();
             runLogs.value.unshift(log);
             // 只保留最后500条日志
@@ -135,7 +137,7 @@ export function startRunLogs() {
     });
     return () => {
         console.log('移除监听');
-        window.electron.ipcRenderer.removeAllListeners('run-logs');
+        unlisten();
     };
 }
 

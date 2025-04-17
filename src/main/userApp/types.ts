@@ -265,10 +265,20 @@ export interface DirectiveInput {
      */
     type: DataType;
 
+ 
     /**
      * 是否启用表达式
+     * @deprecated 使用 objectMode 代替
      */
     enableExpression?: boolean;
+
+    /**
+     * 对象模式
+     * string: 文本模式
+     * expression: 表达式模式
+     * stringRaw: 存文本模式
+     */
+    objectMode?: 'string' | 'expression' | 'stringRaw';
 
     /**
      * 添加字段配置，配置添加弹窗的样式
@@ -332,6 +342,7 @@ export interface DirectiveTree {
      */
     displayName?: string;
 
+
     /**
      * 指令描述
      */
@@ -376,6 +387,11 @@ export interface DirectiveTree {
      * 是否流程控制指令结束 （if, for, while, switch）
      */
     isControlEnd?: boolean;
+
+    /**
+     * 添加此指令 附带后面 添加的指令name列表
+     */
+    appendDirectiveNames?: string[];
 
     /**
      * 图标

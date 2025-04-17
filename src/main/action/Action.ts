@@ -351,6 +351,9 @@ class Action {
     static async devStop(appId: string) {
         return UserAppManage.devStop(appId);
     }
+    static async copyUserApp(appId: string) {
+        return UserAppManage.copyUserApp(appId);
+    }
     static async closeUserAppStepTip(appId: string) {
         return UserAppManage.closeUserAppStepTip(appId);
     }

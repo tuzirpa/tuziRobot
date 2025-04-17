@@ -29,13 +29,8 @@ export type AppPlaza = {
 export class UserAppManage {
     openLogsDir(appId: string) {
         const userApp = this.findUserApp(appId);
-        if (userApp.lastRunLogId) {
-            const logsDir = path.join(userApp.appDir, 'logs', `${userApp.lastRunLogId}.log`);
-            shell.openExternal(logsDir);
-        } else {
-            const logsDir = path.join(userApp.appDir, 'logs');
-            shell.openExternal(logsDir);
-        }
+        const logsDir = path.join(userApp.appDir, 'logs');
+        shell.openExternal(logsDir);
     }
     async executeStep(_appId: string, step: DirectiveTree, index: number) {
         // const userApp = this.findUserApp(appId);
@@ -241,7 +236,7 @@ export class UserAppManage {
             const zipPath = createTempFile('userApp', '.zip');
             zip(zipPath, userApp.appDir, (filename) => {
                 //过滤掉不需要的文件
-                const exts = ['userData', '.tuzi', 'logs'];
+                const exts = UserApp.excludeDirs;
                 if (exts.some((ext) => filename.startsWith(ext))) {
                     return false;
                 }
@@ -298,6 +293,35 @@ export class UserAppManage {
     async devStop(appId: string) {
         const userApp = this.findUserApp(appId);
         userApp.devStop();
+    }
+    async copyUserApp(appId: string) {
+        const userApp = this.findUserApp(appId);
+        const newUserApp = this.newUserApp(userApp.name + '（复制）');
+        //复制应用 递归复制文件
+        //使用循环复制文件
+        // 等待1秒 因为 Flow 的 init 方法 是异步保存的
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
+        const files = fs.readdirSync(userApp.appDir);
+        files.forEach((file) => {
+            if (file.startsWith('.')) {
+                return;
+            }
+            if(file === 'package.json') {
+                // 次文件 在newUserApp 这个已经生成
+                return;
+            }
+            console.log(file, 'file');
+            if(UserApp.excludeDirs.some((ext) => file.startsWith(ext))) {
+                return;
+            }
+            const filePath = path.join(userApp.appDir, file);
+            const newFilePath = path.join(newUserApp.appDir, file);
+            fs.cpSync(filePath, newFilePath, { recursive: true,force:true });
+        });
+        
+        this.reloadUserApp(newUserApp.id);
+        return newUserApp;
     }
     devResume(appId: string) {
         const userApp = this.findUserApp(appId);
@@ -370,6 +394,15 @@ export class UserAppManage {
         this.userApps.push(userApp);
         return userApp;
     }
+
+    async reloadUserApp(appId: string) {
+        const userApp = this.findUserApp(appId);
+        const index = this.userApps.findIndex((app) => app.id === appId);
+        const newUserApp = new UserApp(userApp.id);
+        newUserApp.generateMainJs();
+        this.userApps[index] = newUserApp;
+    }
+
     saveFlow(appId: string, flow: Flow) {
         const userApp = this.findUserApp(appId);
         const flowSave = userApp.findFlow(flow.name);

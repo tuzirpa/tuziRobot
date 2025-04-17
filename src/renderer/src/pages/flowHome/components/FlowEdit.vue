@@ -5,7 +5,7 @@ import { watch, computed, nextTick, onMounted, ref, onUnmounted } from 'vue';
 import { dragData } from '../dragVar';
 import { showContextMenu } from '@renderer/components/contextmenu/ContextMenuPlugin';
 import { ElCascader, ElMessage, ElScrollbar } from 'element-plus';
-import { useDirective } from '../directive';
+import { getDirectiveByKey, useDirective } from '../directive';
 import { Shortcut } from './ShortcutRegister';
 import AddDirective from './AddDirective.vue';
 import type Flow from 'src/main/userApp/Flow';
@@ -362,10 +362,8 @@ async function flowEditDragEnter(event: DragEvent) {
     const directiveBlock = target.closest('.directive-block');
     if (directiveBlock) {
         const blockId = directiveBlock.getAttribute('data-id');
-        console.log(blockId, 'dragenter');
         const block = curOpenFile.value.blocks.find((block) => block.id === blockId);
         if (block) {
-            console.log(block, 'dragenter');
             dragenterBlock.value = block;
             let oldIndex = curOpenFile.value.blocks.findIndex(
                 (block) => block.id === dragenterBlock.value?.id
@@ -754,39 +752,22 @@ function addBlockTemp() {
         }
 
         //判断如果添加的是控制流程开始需要自动添加控制流程结束
-
-        if (addDirective.isControl && addDirective.name === 'flowControl.if') {
-
-            const controlEnd: DirectiveData = {
-                id: uuid(),
-                pdLvn: 0,
-                name: 'flowControl.if.end',
-                key: 'system.flowControl.if.end',
-                displayName: 'END IF',
-                comment: '结束条件判断',
-                isControl: false,
-                isControlEnd: true,
-                inputs: {},
-                outputs: {}
-            };
-            curOpenFile.value.blocks.splice(addTempIndex.value + 1, 0, controlEnd);
+        if (addDirective.appendDirectiveNames) {
+            addDirective.appendDirectiveNames.forEach((appendDirectiveName, index) => {
+                //这边去全部的指令 然后找到对应的指令 然后添加到后面
+                const appendDirective = getDirectiveByKey(appendDirectiveName);
+                if (appendDirective) {
+                    const controlEnd: DirectiveData = {...appendDirective,
+                        id: uuid(),
+                        pdLvn: appendDirective.pdLvn ?? 0,
+                        name: appendDirective.name!,
+                        inputs: appendDirective.inputs || {},
+                        outputs: appendDirective.outputs || {}
+                    };
+                    curOpenFile.value.blocks.splice(addTempIndex.value + index + 1, 0, controlEnd);
+                }
+            });
         }
-        if (addDirective.isControl && addDirective.isLoop) {
-            const controlEnd: DirectiveData = {
-                id: uuid(),
-                pdLvn: 0,
-                name: 'flowControl.for.end',
-                key: 'system.flowControl.for.end',
-                displayName: '循环结束标记',
-                comment: '表示循环区域的尾部',
-                isControl: false,
-                isControlEnd: true,
-                inputs: {},
-                outputs: {}
-            };
-            curOpenFile.value.blocks.splice(addTempIndex.value + 1, 0, controlEnd);
-        }
-
 
         saveCurFlow('添加');
     } else {
@@ -1330,7 +1311,7 @@ const directiveCascader = ref();
             </template>
         </el-dialog>
         <!-- 确认添加指令弹框 -->
-        <el-dialog v-if="directiveAddTemp" v-model="addTempDialogVisible" @close="directiveAddTemp = void 0"
+        <el-dialog v-if="directiveAddTemp" v-model="addTempDialogVisible" @close="directiveAddTemp = void 0" width="70%"
             :title="`${directiveAddTemp.id ? '编辑' : '添加'}指令`" draggable>
             <div class="flex flex-col">
                 <AddDirective :directive="directiveAddTemp" :variables="variables" />

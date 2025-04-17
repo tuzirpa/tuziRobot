@@ -3,7 +3,7 @@ import { Setting, Share, Upload } from '@element-plus/icons-vue';
 import { showContextMenu } from '@renderer/components/contextmenu/ContextMenuPlugin';
 import { Action } from '@renderer/lib/action';
 import { getUserApps, UserAppInfo, userApps } from '@renderer/store/commonStore';
-import { ElButton, ElInput, ElMessage, ElMessageBox } from 'element-plus';
+import { ElButton, ElInput, ElMessage, ElMessageBox, ElLoading } from 'element-plus';
 import type { AppVariable } from 'src/main/userApp/types';
 import { computed, ref, watch } from "vue";
 import AppLogs from './AppLogs.vue';
@@ -30,6 +30,25 @@ async function runUserApp(id: string) {
 async function stopUserApp(id: string) {
     await Action.devStop(id);
     getUserApps();
+}
+
+async function copyUserApp(id: string) {
+    // 复制应用
+    // 提示 等待复制中... 用 覆盖全屏加载中
+    const loadingInstance = ElLoading.service({
+        fullscreen: true,
+        text: '等待复制中...',
+        background: 'rgba(0, 0, 0, 0.7)'
+    });
+    try {
+        await Action.copyUserApp(id);
+        ElMessage.success('复制成功');
+        getUserApps();
+    } catch (error) {
+        ElMessage.error('复制失败');
+    } finally {
+        loadingInstance.close();
+    }
 }
 
 function deleteUserApp(id: string) {
@@ -267,12 +286,14 @@ function updateAppLogFilter(appId: string, value: string[]) {
                             <div class="flex justify-between items-center">
                                 <div class="min-w-16 truncate">{{ index + 1 }} .</div>
                                 <div class="operation flex justify-center items-center">
+                                    
                                     <el-button type="primary" link @click="runUserApp(app.id)"
                                         v-show="app.status === 'stop'">运行</el-button>
                                     <el-button type="primary" link @click="stopUserApp(app.id)"
                                         v-show="app.status === 'running'">停止</el-button>
                                     <el-button type="info" link
                                         @click="$router.push('/flowHome/index?appId=' + app.id)">编辑</el-button>
+                                    <el-button type="primary" link @click="copyUserApp(app.id)">复制</el-button>
 
                                     <el-popconfirm title="确定删除么？" @confirm="deleteUserApp(app.id)">
                                         <template #reference>
@@ -395,14 +416,14 @@ function updateAppLogFilter(appId: string, value: string[]) {
             </el-dialog>
         </Teleport>
 
-        <el-dialog v-model="configDialogVisible" title="应用配置" width="600px">
+        <el-dialog v-model="configDialogVisible" title="应用配置" width="70%">
             <div v-if="currentAppConfig?.variables.length === 0" class="text-center text-gray-400 py-4">
                 暂无可配置的变量，请先在应用编辑页面设置需要暴露的变量
             </div>
             <el-form v-else label-width="120px">
                 <el-form-item v-for="variable in currentAppConfig?.variables" 
                              :key="variable.name"
-                             :label="variable.display || variable.name">
+                             :label="variable.name">
                     <el-input v-model="variable.value" 
                              :placeholder="variable.display || '请输入值'"
                              :type="variable.type === 'number' ? 'number' : 'text'" />
