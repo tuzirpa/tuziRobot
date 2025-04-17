@@ -1,11 +1,11 @@
-<script setup lang="ts">
+<script setup lang="tsx">
 import type { DirectiveTree, FlowVariable } from 'src/main/userApp/types';
 import { sleep, uuid } from '@shared/Utils';
 import { watch, computed, nextTick, onMounted, ref, onUnmounted } from 'vue';
 import { dragData } from '../dragVar';
 import { showContextMenu } from '@renderer/components/contextmenu/ContextMenuPlugin';
 import { ElCascader, ElMessage, ElScrollbar } from 'element-plus';
-import { useDirective } from '../directive';
+import { getDirectiveByKey, useDirective } from '../directive';
 import { Shortcut } from './ShortcutRegister';
 import AddDirective from './AddDirective.vue';
 import type Flow from 'src/main/userApp/Flow';
@@ -17,7 +17,6 @@ import { curShowFlowErrors } from './FlowEditStore';
 import { DirectiveData, OpenFile } from './types'
 import { closeFile, curWorkStatus } from '../indexvue'
 import SearchVariable from './SearchVariable.vue';
-
 const props = defineProps<{
     flows: Flow[];
     breakpointData: IBreakpoint;
@@ -90,8 +89,7 @@ const openFiles = computed<OpenFile[]>(() => {
     return opFiles;
 });
 
-const aaa = new Set();
-const editFiles = ref(aaa);
+const editFiles = ref(new Set());
 
 
 const curOpenFile = ref<OpenFile>(files.value[0]);
@@ -139,18 +137,18 @@ function commentCompute(block: DirectiveData, index: number) {
                 console.error(`${block.displayName} 第${index + 1}行`, error);
             }
             if (val) {
-                // 检查是否是全局变量
                 const isGlobal = val.toString().startsWith('_GLOBAL_');
                 const displayVal = isGlobal ? `🌐 ${val}` : val;
-                return `<span class="variable ctrl-cursor-pointer ${isGlobal ? ' global' : ''}" onclick="searchVariableToLine('${encodeURIComponent(val)}')">${displayVal}</span>`;
+                return `<span class="variable ctrl-cursor-pointer${isGlobal ? ' global' : ''}" 
+                onclick="searchVariableToLine('${encodeURIComponent(val)}')">${displayVal}</span>`;
             }
-            
             return '';
         });
-        return comment;
-    } else {
-        return block.name;
+
+        return comment;  // 返回 HTML 字符串
     }
+    
+    return block.name;  // 返回纯文本
 }
 
 /**
@@ -187,6 +185,12 @@ const blocks = computed(() => {
             curOpenFile.value.blocks[index].isFold = true;
             curOpenFile.value.blocks[index].open = curOpenFile.value.blocks[index].open ?? true;
             pdLvn++;
+        }
+    });
+
+    props.appInfo.flows.forEach((item) => {
+        if (item.name === curOpenFile.value?.name) {
+            item.blocks = curOpenFile.value.blocks;
         }
     });
 
@@ -249,6 +253,10 @@ function foldClick(blockParam: DirectiveData, _index: any) {
     if (!blockParam.open) {
         const { foldNum, subBlocks } = getFoldSub(blockParam);
         subBlocks.forEach((item) => {
+            //如果子节点是折叠节点，则打开,不然这边会乱 里面的折叠会无效，如果要处理
+            if (item.isFold) {
+                item.open = true;
+            }
             item.hide = true;
         });
         blockParam.foldDesc = `${foldNum} 条指令`;
@@ -354,10 +362,8 @@ async function flowEditDragEnter(event: DragEvent) {
     const directiveBlock = target.closest('.directive-block');
     if (directiveBlock) {
         const blockId = directiveBlock.getAttribute('data-id');
-        console.log(blockId, 'dragenter');
         const block = curOpenFile.value.blocks.find((block) => block.id === blockId);
         if (block) {
-            console.log(block, 'dragenter');
             dragenterBlock.value = block;
             let oldIndex = curOpenFile.value.blocks.findIndex(
                 (block) => block.id === dragenterBlock.value?.id
@@ -746,39 +752,22 @@ function addBlockTemp() {
         }
 
         //判断如果添加的是控制流程开始需要自动添加控制流程结束
-
-        if (addDirective.isControl && addDirective.name === 'flowControl.if') {
-
-            const controlEnd: DirectiveData = {
-                id: uuid(),
-                pdLvn: 0,
-                name: 'flowControl.if.end',
-                key: 'system.flowControl.if.end',
-                displayName: 'END IF',
-                comment: '结束条件判断',
-                isControl: false,
-                isControlEnd: true,
-                inputs: {},
-                outputs: {}
-            };
-            curOpenFile.value.blocks.splice(addTempIndex.value + 1, 0, controlEnd);
+        if (addDirective.appendDirectiveNames) {
+            addDirective.appendDirectiveNames.forEach((appendDirectiveName, index) => {
+                //这边去全部的指令 然后找到对应的指令 然后添加到后面
+                const appendDirective = getDirectiveByKey(appendDirectiveName);
+                if (appendDirective) {
+                    const controlEnd: DirectiveData = {...appendDirective,
+                        id: uuid(),
+                        pdLvn: appendDirective.pdLvn ?? 0,
+                        name: appendDirective.name!,
+                        inputs: appendDirective.inputs || {},
+                        outputs: appendDirective.outputs || {}
+                    };
+                    curOpenFile.value.blocks.splice(addTempIndex.value + index + 1, 0, controlEnd);
+                }
+            });
         }
-        if (addDirective.isControl && addDirective.isLoop) {
-            const controlEnd: DirectiveData = {
-                id: uuid(),
-                pdLvn: 0,
-                name: 'flowControl.for.end',
-                key: 'system.flowControl.for.end',
-                displayName: '循环结束标记',
-                comment: '表示循环区域的尾部',
-                isControl: false,
-                isControlEnd: true,
-                inputs: {},
-                outputs: {}
-            };
-            curOpenFile.value.blocks.splice(addTempIndex.value + 1, 0, controlEnd);
-        }
-
 
         saveCurFlow('添加');
     } else {
@@ -1253,8 +1242,11 @@ const directiveCascader = ref();
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div class="description flex-1 ml-6 text-xs text-gray-400 truncate" :class="{ 'ctrlKeyDown': ctrlKeyDown }"
-                                                    v-html="element.commentShow"></div>
+                                                <div class="description flex-1 ml-6 text-xs text-gray-400 truncate" 
+                                                     :class="{ 'ctrlKeyDown': ctrlKeyDown }"
+                                                     v-html="element.commentShow">
+                                                </div>
+                                                
                                             </div>
                                         </div>
                                         <div @click="addBlockDialogVisible = true"
@@ -1319,7 +1311,7 @@ const directiveCascader = ref();
             </template>
         </el-dialog>
         <!-- 确认添加指令弹框 -->
-        <el-dialog v-if="directiveAddTemp" v-model="addTempDialogVisible" @close="directiveAddTemp = void 0"
+        <el-dialog v-if="directiveAddTemp" v-model="addTempDialogVisible" @close="directiveAddTemp = void 0" width="70%"
             :title="`${directiveAddTemp.id ? '编辑' : '添加'}指令`" draggable>
             <div class="flex flex-col">
                 <AddDirective :directive="directiveAddTemp" :variables="variables" />
@@ -1423,11 +1415,11 @@ const directiveCascader = ref();
     border-color: #ff9900;
 }
 </style>
-<script lang="ts">
+<script lang="tsx">
 // 声明全局函数类型
 declare global {
     interface Window {
-        searchVariableToLine: (text: string) => void;  // 移除 type 参数
+        searchVariableToLine: (text: string) => void;
     }
 }
 </script>

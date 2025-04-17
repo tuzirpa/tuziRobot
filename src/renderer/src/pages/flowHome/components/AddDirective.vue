@@ -24,6 +24,7 @@ console.log(_directive.value.inputs);
 
 _directive.value.failureStrategy = _directive.value.failureStrategy || 'throw';
 
+
 const groups = ref([
     { name: '常规', active: false },
     { name: '高级', active: false },
@@ -151,10 +152,14 @@ function optionChange(e: string, inputItem: DirectiveInput) {
     //特殊处理 设置变量指令
     if (_directive.value.name === 'dataProcessing.setVariable') {
         _directive.value.outputs.varName.display = _directive.value.inputs.varType.display;
-        // let varTypeValue = _directive.value.inputs.varType.value;
-        // varTypeValue = varTypeValue === 'string' ? 'textarea' : varTypeValue;
-        // varTypeValue = varTypeValue === 'number' ? 'variable' : varTypeValue;
-        _directive.value.inputs.varValue.addConfig.type = 'textarea';
+        let varTypeValue = _directive.value.inputs.varType.value;
+        varTypeValue = varTypeValue === 'object' ? varTypeValue : 'textarea';
+        _directive.value.inputs.varValue.addConfig.type = varTypeValue;
+        if (varTypeValue === 'object') {
+            _directive.value.inputs.varValue.type = 'object';
+        }else{
+            _directive.value.inputs.varValue.type = 'string';
+        }
         
     }
     console.log(inputItem.display);
@@ -361,7 +366,7 @@ function inputItemFilters(directive: DirectiveTree, inputItem: DirectiveInput) {
                             <div class="param-item flex gap-4 items-center">
                                 <div class="param-name">重试间隔：</div>
                                 <div class="param-value flex-1">
-                                    <el-input-number v-model="_directive.intervalTime" :min="1" :max="10"
+                                    <el-input-number v-model="_directive.intervalTime" :min="1"
                                         :step="1"></el-input-number>
                                     秒
                                 </div>
@@ -369,7 +374,7 @@ function inputItemFilters(directive: DirectiveTree, inputItem: DirectiveInput) {
                             <div class="param-item flex gap-4 items-center">
                                 <div class="param-name">重试次数：</div>
                                 <div class="param-value flex-1">
-                                    <el-input-number v-model="_directive.retryCount" :min="1" :max="10"
+                                    <el-input-number v-model="_directive.retryCount" :min="1"
                                         :step="1"></el-input-number>
                                     次
                                 </div>

@@ -54,3 +54,13 @@ export async function getOutputTypeDetails(directiveKey: string, name: string) {
     outputTypeDetailsMap.set(cacheKey, outputTypeDetails ?? null);
     return outputTypeDetails;
 }
+
+
+/**
+ * 通过name 获取指令
+ */
+export function getDirectiveByKey(name: string) {
+    // 偏平化指令列表
+    const flatDirectives = directives.value.flatMap((directive) => directive.children);
+    return flatDirectives.filter(directive=>!!directive).find((directive) => directive?.name === name);
+}

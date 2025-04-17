@@ -63,6 +63,7 @@ export default class Flow {
             let content = fs.readFileSync(this.filePath, {
                 encoding: 'utf-8'
             });
+            console.log(content, 'content');
             content = content || '{}';
             const contentObj = JSON.parse(content);
             this.blocks = contentObj.blocks || [];

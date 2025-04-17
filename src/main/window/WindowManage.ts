@@ -31,8 +31,8 @@ export class WindowManage {
         const window = new BrowserWindow({
             width: 1400,
             height: 860,
-            minWidth: 1280,
-            minHeight: 800,
+            minWidth: 800,
+            minHeight: 600,
             show: true,
             resizable: true,
             frame: false,

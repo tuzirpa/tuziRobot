@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { AppVariable, DirectiveInput, FlowVariable } from 'src/main/userApp/types';
+import { Action } from '@renderer/lib/action';
+import { useElementSize } from '@vueuse/core';
 import { ElInput } from 'element-plus';
+import type { AppVariable, DirectiveInput, FlowVariable } from 'src/main/userApp/types';
 import { ref, unref } from 'vue';
-import { Action } from '@renderer/lib/action'
-import { useElementSize } from '@vueuse/core'
 import { curUserApp } from '../indexvue';
+import { addElementLibrary, elementLibraryEditConfirm } from '../propertyTabs';
 import VariableItem from './VariableItem.vue';
-import { addElementLibrary, elementLibraryEditConfirm } from '../propertyTabs'
 // import { typeDisplay } from '../directiveConfig';
 
 // 添加逻辑
@@ -26,6 +26,8 @@ const varSelectVal = ref('');
 const variableSelect = ref();
 const varShow = ref(false);
 const cursorPos = ref(0);
+
+props.inputItem.objectMode = props.inputItem.objectMode || 'string';
 
 function varClick() {
     const input = valInputRef?.value?.ref;
@@ -93,13 +95,14 @@ function localVariablesFilter(variable: FlowVariable) {
             || variable.display?.includes(varSelectVal.value));;
 }
 
-function enableExpressionToggle() {
-    props.inputItem.enableExpression = !props.inputItem.enableExpression;
-    if (props.inputItem.enableExpression) {
+
+function enableExpressionToggle(_e: Event) {
+    if (props.inputItem.objectMode === 'expression') {
         model.value = (model.value ?? '').replace(/^\${/g, '').replace(/}$/g, '');
-    } else {
+    }else if(props.inputItem.objectMode === 'string'){
         model.value = `\${${model.value}}`;
     }
+
 }
 
 const activeTabsName = ref('variable');
@@ -119,31 +122,15 @@ function selectXpathSelector(elementInfo: any) {
 
 <template>
     <div class="relative tracking-wider flex gap-1 items-center">
-        <el-popover placement="top-start" title="点击切换模式" :width="400" trigger="hover" v-if="inputItem.type === 'object'">
-            <div class="flex flex-col gap-2 text-xs">
-                <div class="flex items-center gap-2">
-                    <el-tag :type="`info`">
-                        ex
-                    </el-tag>
-                    <div>
-                        文本模式，支持文本、变量混合输入 最终结果会被解析为文本
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <el-tag :type="`primary`">
-                        ex
-                    </el-tag>
-                    <div>
-                        表达式模式，支持JS表达式输入 最终结果会被解析为表达式
-                    </div>
-                </div>
-            </div>
-            <template #reference>
-                <el-tag @click="enableExpressionToggle" :type="`${inputItem.enableExpression ? 'primary' : 'info'}`">
-                    ex
-                </el-tag>
-            </template>
-        </el-popover>
+        <div style="width: 120px;" v-if="inputItem.type === 'object'">
+            <el-select @change="enableExpressionToggle" class="w-full" v-model="inputItem.objectMode" placeholder="解析模式">
+                <el-option label="文本模式" value="string">文本模式 (支持文本、变量混合输入 最终结果会被解析为文本)</el-option>
+                <el-option label="表达式模式" value="expression">表达式模式 (最终结果会被解析为表达式)</el-option>
+                <el-option label="存文本模式" value="stringRaw">存文本模式 (字符串原始值 不会替换 ${} 变量)</el-option>
+            </el-select>
+        </div>
+      
+        
 
 
         <div ref="inputRef" class="flex-1">

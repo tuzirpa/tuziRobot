@@ -34,6 +34,10 @@ export type TuziAppData = {
  * 应用类
  */
 export default class UserApp {
+
+    //排除目录
+    static excludeDirs = ['userData', '.tuzi', 'logs', 'data', 'images' ,'download','screenshot'];
+
     deleteBreakPoint(flowName: string, stepIndex: number) {
         if (this.#devNodeJs) {
             const flow = this.findFlow(flowName);
@@ -176,6 +180,7 @@ export default class UserApp {
         this.init();
     }
 
+
     /**
      * 销毁
      */
@@ -279,14 +284,14 @@ export default class UserApp {
         this.globalVariables.forEach((globalVar) => {
             let value = globalVar.value;
             if (globalVar.type === 'string') {
-                value = `'${value.replace(/'/g, "\\'")}'`;
+                value = `${JSON.stringify(value)}`;
             }
             mainJsContent.push(
                 `globalThis._GLOBAL_${globalVar.name} = ${value}; // ${globalVar.display}`
             );
         });
         mainJsContent.push(
-            `globalThis.curApp = {APP_ID: "${this.id}", APP_NAME: "${this.name}", APP_VERSION: "${this.version}", APP_DIR: "${this.appDir.replace(/\\/g, '/')}"};`
+            `globalThis.curApp = {startRunTime: Date.now(), APP_ID: "${this.id}", APP_NAME: "${this.name}", APP_VERSION: "${this.version}", APP_DIR: "${this.appDir.replace(/\\/g, '/')}"};`
         );
         mainJsContent.push(
             `globalThis._tuziAppInfo = {SERSION: "${app.getVersion()}", INSTALL_DIR: "${app.getAppPath().replace(/\\/g, '/')}", USER_DIR: "${app.getPath('userData').replace(/\\/g, '/')}"};`

@@ -78,12 +78,13 @@ const acceptLogs = (_event, log: LogMessageApp | LogMessageApp[]) => {
     content.value = runLogs.value.map(log2Content).join('\n');
 }
 
+let unlisten = () => { }
 // 监听数据变化
 onMounted(() => {
-    window.electron.ipcRenderer.on('run-logs-' + props.appId, acceptLogs);
+    unlisten = window.electron.ipcRenderer.on(`run-logs-${props.appId}`, acceptLogs);
 })
 onUnmounted(() => {
-    window.electron.ipcRenderer.removeAllListeners('run-logs-' + props.appId);
+    unlisten();
 })
 
 
