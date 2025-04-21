@@ -286,6 +286,13 @@ export class UserAppManage {
         userApp.name = name;
         return userApp.save();
     }
+
+    updateUserAppVersion(appId: string, version: string) {
+        const userApp = this.findUserApp(appId);
+        userApp.version = version;
+        return userApp.save();
+    }
+    
     devGetProperties(appId: string, objectId: string) {
         const userApp = this.findUserApp(appId);
         return userApp.devGetProperties(objectId);

@@ -202,6 +202,7 @@ export default class UserApp {
         // 保存
         // 写入package.json文件
         this.packageJson.name = this.name;
+        this.packageJson.version = this.version;
         this.packageJson.description = this.description;
         this.packageJson.type = this.type;
         this.packageJson.sourceAppId = this.sourceAppId;
@@ -225,6 +226,7 @@ export default class UserApp {
         this.packageJson = JSON.parse(packageJsonStr);
         this.name = this.packageJson.name;
         this.author = this.packageJson.author;
+        this.version = this.packageJson.version;
         this.description = this.packageJson.description;
         this.type = this.packageJson.type;
 
@@ -291,7 +293,7 @@ export default class UserApp {
             );
         });
         mainJsContent.push(
-            `globalThis.curApp = {startRunTime: Date.now(), APP_ID: "${this.id}", APP_NAME: "${this.name}", APP_VERSION: "${this.version}", APP_DIR: "${this.appDir.replace(/\\/g, '/')}"};`
+            `globalThis.curApp = {startRunTime: Date.now(), APP_ID: "${this.id}", APP_NAME: "${this.name}", APP_VERSION: "${this.version}", APP_DIR: __dirname};`
         );
         mainJsContent.push(
             `globalThis._tuziAppInfo = {SERSION: "${app.getVersion()}", INSTALL_DIR: "${app.getAppPath().replace(/\\/g, '/')}", USER_DIR: "${app.getPath('userData').replace(/\\/g, '/')}"};`

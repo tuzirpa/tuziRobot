@@ -19,7 +19,7 @@ import { Alignment } from 'element-plus/es/components/table-v2/src/constants';
 import CodeEdit from './components/CodeEdit.vue';
 import type Flow from 'src/main/userApp/Flow';
 import { showContextMenu } from '@renderer/components/contextmenu/ContextMenuPlugin';
-import { DeleteFilled, Filter, Edit, CopyDocument, FullScreen } from '@element-plus/icons-vue';
+import { DeleteFilled, Filter, Edit, CopyDocument, FullScreen, Folder } from '@element-plus/icons-vue';
 import GlobalVariable from './components/GlobalVariable.vue';
 import type { AppVariable } from 'src/main/userApp/types';
 import { addElementLibrary, elementLibraryEditConfirm, propertyTabList, propertyTabsActiveName } from './propertyTabs';
@@ -34,6 +34,12 @@ const id = route.query.appId as string;
 const userAppDetail = ref<UserApp>();
 
 const instance = getCurrentInstance();
+
+// 定义打包相关的变量
+const packDialogVisible = ref(false);
+const packType = ref<'script' | 'exe'>('script');
+const packLoading = ref(false);
+const packOutputPath = ref('');
 
 async function getAppDetail() {
     // 获取应用详情
@@ -55,6 +61,19 @@ async function getAppDetail() {
 onMounted(() => {
     init();
 });
+
+async function modifyVersion() {
+    const res = await ElMessageBox.prompt('请输入应用版本', '修改应用版本', {
+        inputValue: userAppDetail.value?.version,
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+    });
+    if (res.action === 'confirm') {
+        await Action.updateUserAppVersion(userAppDetail.value?.id ?? '', res.value);
+        userAppDetail.value!.version = res.value;
+        ElMessage.success('修改版本成功');
+    }
+}
 
 async function newSubFlow(subFlow: any) {
     await getAppDetail();
@@ -534,6 +553,37 @@ async function saveGlobalVariable(gvars: AppVariable[]) {
     }
 }
 
+// 选择输出目录
+async function selectOutputPath() {
+    const result = await Action.selectFileOrFolder1({
+        openDirectory: true,
+        title: '选择打包输出目录'
+    });
+    if (result) {
+        packOutputPath.value = result[0];
+    }
+}
+
+// 打包应用
+async function packApp() {
+    if (!userAppDetail.value?.id) return;
+    if (!packOutputPath.value) {
+        ElMessage.warning('请选择打包输出路径');
+        return;
+    }
+    
+    packLoading.value = true;
+    try {
+        await Action.packApp(userAppDetail.value.id, packType.value, packOutputPath.value);
+        ElMessage.success('打包成功');
+        packDialogVisible.value = false;
+    } catch (error) {
+        ElMessage.error('打包失败：' + error);
+    } finally {
+        packLoading.value = false;
+    }
+}
+
 // 添加逻辑
 </script>
 
@@ -598,11 +648,14 @@ async function saveGlobalVariable(gvars: AppVariable[]) {
                             @click="devStop" :class="{ 'text-red-600': isDev || isRun }">
                             停止
                         </BtnTip>
+                        <BtnTip class="bg-slate-400/20 rounded" :icon="'icon-dabaoxiazai'" :text="'打包应用'" @click="packDialogVisible = true">
+                            打包
+                        </BtnTip>
                     </div>
                 </div>
                 <div class="viewbox flex flex-row justify-end items-center gap-2">
-                    <BtnTip class="bg-slate-400/15 rounded" :icon="'icon-wenhao'" :text="'帮助、教程、学习资料'">
-                        学习中心
+                    <BtnTip class="bg-slate-400/15 rounded" :text="'修改版本'" @click="modifyVersion">
+                        应用版本：{{ userAppDetail?.version }}
                     </BtnTip>
                     <BtnTip :icon="'icon-tongzhi'" :text="'消息通知'"> </BtnTip>
                     <BtnTip :icon="'icon-sandian'" :text="'插件、交流、分享'"> </BtnTip>
@@ -783,6 +836,74 @@ async function saveGlobalVariable(gvars: AppVariable[]) {
             <CodeEdit :code="code"></CodeEdit>
         </ElDialog>
         <PropertyTabs></PropertyTabs>
+        
+        <!-- 打包配置对话框 -->
+        <el-dialog v-model="packDialogVisible" title="打包应用" width="50%"
+         :close-on-click-modal="!packLoading" :show-close="!packLoading">
+            <div class="flex flex-col gap-4">
+                <div class="text-sm text-gray-500">请选择打包类型：</div>
+                <el-radio-group v-model="packType">
+                    <el-radio label="exe" :disabled="true">独立可执行文件 (EXE) （暂未支持）</el-radio>
+                    <el-radio label="script">脚本文件</el-radio>
+                </el-radio-group>
+                
+                <!-- 输出路径选择 -->
+                <div class="mt-4">
+                    <div class="text-sm text-gray-500 mb-2">打包输出路径：</div>
+                    <div class="flex items-center gap-2">
+                        <el-input 
+                            v-model="packOutputPath" 
+                            placeholder="请选择打包输出路径"
+                            :readonly="true"
+                            class="flex-1">
+                            <template #append>
+                                <el-button @click="selectOutputPath">
+                                    <el-icon><Folder /></el-icon>
+                                    选择目录
+                                </el-button>
+                            </template>
+                        </el-input>
+                    </div>
+                </div>
+
+                <div class="text-xs text-gray-400 mt-2">
+                    <div class="whitespace-pre">
+                        注意：<br>
+                        1. 打包时，会自动将node_modules、system、extend目录复制到打包目录<br>
+                        2. 打包时，会自动将当前应用的依赖包安装到打包目录<br>
+                        3. 因为打包后没有兔子RPA作为运行载体，会有如下限制：<br>
+                        <div class="text-red-500">
+                            获取兔子软件信息 getTuziAppInfo 的 INSTALL_DIR、USER_DIR属性将无效
+                            <br>
+                            全部对话框指令将无效（如果使用了这些指令打包会运行错误，请不要使用）
+                        </div>
+                    </div>
+                    <br><br>
+                    <template v-if="packType === 'exe'">
+                        将打包为独立的可执行文件，无需安装环境即可运行
+                    </template>
+                    <template v-else>
+                        将打包为脚本文件，需要安装nodejs环境，版本18的就行 <br>
+                        nodejs 下载地址：<br>
+                        官网：<a class="text-blue-500 hover:cursor-pointer" @click="Action.openExternal('https://nodejs.org/zh-cn/')">https://nodejs.org/zh-cn/</a><br>
+                        下载地址：<a class="text-blue-500 hover:cursor-pointer" @click="Action.openExternal('https://nodejs.org/zh-cn/download')">https://nodejs.org/zh-cn/download</a><br>
+                    </template>
+                </div>
+            </div>
+            <template #footer>
+                <div class="dialog-footer flex justify-end gap-2">
+                    <div class="flex justify-end items-center gap-2 text-gray-500 text-xs" v-if="packLoading">
+                        打包成功后会自动打开打包输出目录
+                    </div>
+                    <div>
+                        <el-button @click="packDialogVisible = false" :disabled="packLoading">取消</el-button>
+                        <el-button type="primary" @click="packApp" :loading="packLoading">
+                            {{ packLoading ? '打包中...' : '开始打包' }}
+                        </el-button>
+                    </div>
+                </div>
+            </template>
+        </el-dialog>
     </div>
 </template>
 
