@@ -25,8 +25,12 @@ import * as lzString from 'lz-string';
 import tuziChromeEvbitonment from '../nodeEnvironment/TuziChromeEvbitonment';
 import type { AppType } from '../userApp/UserApp';
 import { browserManage } from '../browser/BrowserManage';
+import { Packager } from '../packager/index';
 
 class Action {
+    static packApp(id: string, type: 'exe' | 'script', outputPath: string) {
+        return Packager.packApp(id, type, outputPath);
+    }
     static openLogsDir(appId: string) {
         return UserAppManage.openLogsDir(appId);
     }
@@ -128,6 +132,13 @@ class Action {
      */
     static async openFolder(path: string) {
         return shell.showItemInFolder(`file://${path}`);
+    }
+
+    /**
+     * 打开网页
+     */
+    static async openExternal(url: string) {
+        return shell.openExternal(url);
     }
 
     /**
@@ -364,6 +375,11 @@ class Action {
     static async updateUserAppName(appId: string, name: string) {
         return UserAppManage.updateUserAppName(appId, name);
     }
+    
+    static async updateUserAppVersion(appId: string, version: string) {
+        return UserAppManage.updateUserAppVersion(appId, version);
+    }
+
     /**
      * 删除用户应用
      */

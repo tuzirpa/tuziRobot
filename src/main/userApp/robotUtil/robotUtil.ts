@@ -35,10 +35,10 @@ function forRobotUtil(obj: any) {
                         const result = await (value as Function).apply(this, args);
                         return result;
                     } catch (error: any) {
+                        console.error(error.stack);
                         if (blockInfo.failureStrategy === 'terminate') {
                             globalThis._block = blockInfo;
                             
-                            console.error(error.stack);
                             console.error(
                                 `执行指令 ${blockInfo.directiveDisplayName} 异常,终止流程`
                             );
@@ -47,7 +47,6 @@ function forRobotUtil(obj: any) {
                         } else if (blockInfo.failureStrategy === 'throw') {
                             globalThis._block = blockInfo;
                             
-                            console.error(error.stack);
                             console.error(
                                 `执行指令 ${blockInfo.directiveDisplayName} 异常,往上抛出异常`
                             );
@@ -73,7 +72,6 @@ function forRobotUtil(obj: any) {
                                 );
                             }
                             await sleep(blockInfo.intervalTime * 1000);
-                            console.log('重试执行指令', this, ...args);
                             return aaa.apply(this, args);
                         }
                     }

@@ -59,6 +59,7 @@ function start() {
         });
     });
 
+
     function createWindow() {
         console.log('createWindow');
 
