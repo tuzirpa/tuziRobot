@@ -1,6 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { app, shell } from 'electron';
+import { shell } from 'electron';
 import UserAppManage from '../userApp/UserAppManage';
 import UserApp from '../userApp/UserApp';
 
@@ -12,14 +12,6 @@ export class Packager {
         } else {
             await this.packToScript(appId, outputPath);
         }
-    }
-
-    /**
-     * 获取打包输出目录
-     */
-    private static getDistPath(appId: string): string {
-        // 在用户数据目录下创建 dist 目录
-        return path.join(app.getPath('userData'), 'dist', appId);
     }
 
     /**
