@@ -26,6 +26,7 @@ import tuziChromeEvbitonment from '../nodeEnvironment/TuziChromeEvbitonment';
 import type { AppType } from '../userApp/UserApp';
 import { browserManage } from '../browser/BrowserManage';
 import { Packager } from '../packager/index';
+import nodeEvbitonment from '../nodeEnvironment/NodeEvbitonment';
 
 class Action {
     static packApp(id: string, type: 'exe' | 'script', outputPath: string) {
@@ -70,7 +71,7 @@ class Action {
     }
 
     static async init() {
-        // nodeEvbitonment.autoInstallNode();
+        nodeEvbitonment.autoInstallNode();
         tuziChromeEvbitonment.autoInstall();
     }
 
