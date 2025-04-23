@@ -839,12 +839,12 @@ async function packApp() {
         
         <!-- 打包配置对话框 -->
         <el-dialog v-model="packDialogVisible" title="打包应用" width="50%"
-         :close-on-click-modal="!packLoading" :show-close="!packLoading">
+            :close-on-click-modal="!packLoading" :show-close="!packLoading">
             <div class="flex flex-col gap-4">
                 <div class="text-sm text-gray-500">请选择打包类型：</div>
                 <el-radio-group v-model="packType">
-                    <el-radio label="exe" :disabled="true">独立可执行文件 (EXE) （暂未支持）</el-radio>
-                    <el-radio label="script">脚本文件</el-radio>
+                    <el-radio label="exe">含nodejs环境(x64)，体积会比较大(压缩完 43M+)</el-radio>
+                    <el-radio label="script">不含nodejs环境，体积会小很多(压缩完 13M+)</el-radio>
                 </el-radio-group>
                 
                 <!-- 输出路径选择 -->
@@ -880,10 +880,11 @@ async function packApp() {
                     </div>
                     <br><br>
                     <template v-if="packType === 'exe'">
-                        将打包为独立的可执行文件，无需安装环境即可运行
+                        将打包为含nodejs环境的exe文件，可以独立运行，
+                        <text class="text-red-500">无需额外安装nodejs环境</text>
                     </template>
                     <template v-else>
-                        将打包为脚本文件，需要安装nodejs环境，版本18的就行 <br>
+                        将打包为不含nodejs环境的脚本文件，<text class="text-red-500">需要安装nodejs环境</text>，版本18的就行 <br>
                         nodejs 下载地址：<br>
                         官网：<a class="text-blue-500 hover:cursor-pointer" @click="Action.openExternal('https://nodejs.org/zh-cn/')">https://nodejs.org/zh-cn/</a><br>
                         下载地址：<a class="text-blue-500 hover:cursor-pointer" @click="Action.openExternal('https://nodejs.org/zh-cn/download')">https://nodejs.org/zh-cn/download</a><br>
