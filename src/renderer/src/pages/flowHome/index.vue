@@ -41,6 +41,10 @@ const packType = ref<'script' | 'exe'>('script');
 const packLoading = ref(false);
 const packOutputPath = ref('');
 
+// 新增更新文件选项
+const outputUpdateFile = ref(false);
+const outputVersionFile = ref(false);
+
 async function getAppDetail() {
     // 获取应用详情
     // 这里应该调用后端接口获取应用详情
@@ -574,7 +578,12 @@ async function packApp() {
     
     packLoading.value = true;
     try {
-        await Action.packApp(userAppDetail.value.id, packType.value, packOutputPath.value);
+        await Action.packApp(userAppDetail.value.id, {
+            type: packType.value,
+            outputPath: packOutputPath.value,
+            outputUpdateFile: outputUpdateFile.value,
+            outputVersionFile: outputVersionFile.value
+        });
         ElMessage.success('打包成功');
         packDialogVisible.value = false;
     } catch (error) {
@@ -843,8 +852,8 @@ async function packApp() {
             <div class="flex flex-col gap-4">
                 <div class="text-sm text-gray-500">请选择打包类型：</div>
                 <el-radio-group v-model="packType">
-                    <el-radio label="exe">含nodejs环境(x64)，体积会比较大(压缩完 43M+)</el-radio>
-                    <el-radio label="script">不含nodejs环境，体积会小很多(压缩完 13M+)</el-radio>
+                    <el-radio label="exe">独立可执行文件 (EXE)</el-radio>
+                    <el-radio label="script">脚本文件</el-radio>
                 </el-radio-group>
                 
                 <!-- 输出路径选择 -->
@@ -863,6 +872,19 @@ async function packApp() {
                                 </el-button>
                             </template>
                         </el-input>
+                    </div>
+                </div>
+
+                <!-- 新增更新文件选项 -->
+                <div class="mt-4">
+                    <div class="text-sm text-gray-500 mb-2">更新文件选项：</div>
+                    <div class="flex flex-col gap-2">
+                        <el-checkbox v-model="outputUpdateFile">
+                            输出更新文件（将生成 app.zip）
+                        </el-checkbox>
+                        <el-checkbox v-model="outputVersionFile" :disabled="!outputUpdateFile">
+                            输出版本文件（将生成 version.json）
+                        </el-checkbox>
                     </div>
                 </div>
 

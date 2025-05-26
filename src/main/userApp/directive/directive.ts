@@ -63,7 +63,6 @@ function loadSystemDirective() {
             directiveTree.key = `system.${directiveTree.key}`;
             if (directiveTree.toCode) {
                 directiveToCodeMap.set(directiveTree.key, directiveTree.toCode);
-                console.log(directiveTree.name + ' 有自己的toCode ' + directiveTree.key);
             }
 
             for (const key in directiveTree.inputs) {

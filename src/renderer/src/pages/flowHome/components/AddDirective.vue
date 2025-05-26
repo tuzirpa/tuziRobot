@@ -5,8 +5,9 @@ import OutputValueVar from './OutputValueVar.vue';
 import InputValueVarVariable from './InputValueVarVariable.vue';
 import { nextTick, ref } from 'vue';
 import { Action } from '@renderer/lib/action'
-import { ElInput, ElSelect, ElTooltip } from 'element-plus';
+import { ElButton, ElInput, ElSelect, ElTooltip } from 'element-plus';
 import { curUserApp } from '../indexvue';
+import { copyObject } from '@shared/Utils';
 
 // 添加逻辑
 const props = defineProps<{
@@ -37,6 +38,24 @@ function groupClick(group: any) {
 }
 
 const advancedNum = ref(0);
+
+function addInput(inputItemArr: {
+    name: string;
+    value: DirectiveInput[];
+    values?: DirectiveInput[][];
+}) {
+    const v = inputItemArr.value;
+    inputItemArr.values = inputItemArr.values ?? [];
+    inputItemArr.values.push(copyObject(v))
+}
+
+function deleteInputs(inputItemArr :{
+    name: string;
+    value: DirectiveInput[];
+    values?: DirectiveInput[][];
+},index: number){
+    inputItemArr.values?.splice(index, 1);
+}
 
 
 nextTick(async () => {
@@ -275,7 +294,70 @@ function inputItemFilters(directive: DirectiveTree, inputItem: DirectiveInput) {
                                 </div>
                             </template>
                         </div>
-                        <div v-else>没有输入参数</div>
+                        <template  v-if="_directive.inputs2">
+                            <div class="param-item flex gap-4 items-center" v-for="inputItemArr of _directive.inputs2">
+                                <template v-if="inputItemArr">
+                                    <div>{{ inputItemArr.name }}:</div>
+                                    <div class="flex-1 flex flex-col justify-content gap-2">
+                                        <div class="flex gap-2 inputHead">
+                                            <div class="flex-1" v-for="headName in inputItemArr.value">
+                                                {{ headName.addConfig.label }}
+                                            </div>
+                                        </div><!-- -->
+                                    
+                                        <div class="flex gap-2" v-for="(inputItemj,index) in inputItemArr.values">
+                                            <template v-for="inputItem in inputItemj">
+                                                <template v-if="inputItem.addConfig">
+                                                <!--  <div class="param-name" :class="{ required: inputItem.addConfig.required }">
+                                                        {{ inputItem.addConfig.label }}：
+                                                    </div> -->
+                                                    <div class="param-value flex-1">
+                                                        <div class="relative" v-if="inputItem.addConfig.type === 'string'">
+                                                            <InputValueVar @inputValueChange="inputValueChange" v-model="inputItem.value"
+                                                                :variables="_variables" :inputItem="inputItem">
+                                                            </InputValueVar>
+                                                        </div>
+                                                        <div class="relative" v-if="inputItem.addConfig.type === 'object'">
+                                                            <InputValueVar @inputValueChange="inputValueChange" v-model="inputItem.value"
+                                                                :variables="_variables" :inputItem="inputItem">
+                                                            </InputValueVar>
+                                                        </div>
+                                                        <div class="relative" v-if="inputItem.type === 'variable' || inputItem.addConfig.type === 'variable'">
+                                                            <InputValueVarVariable @inputValueChange="inputValueChange"
+                                                                v-model="inputItem.value" :variables="_variables" :inputItem="inputItem">
+                                                            </InputValueVarVariable>
+                                                        </div>
+                                                        <div class="relative" v-else-if="inputItem.addConfig.type === 'textarea'">
+                                                            <InputValueVar @inputValueChange="inputValueChange" v-model="inputItem.value"
+                                                                :inputItem="inputItem" :variables="_variables">
+                                                            </InputValueVar>
+                                                        </div>
+                                                        <el-select v-else-if="inputItem.addConfig.type === 'select'" v-model="inputItem.value"
+                                                            placeholder="请选择" @change="optionChange($event, inputItem)" filterable
+                                                            :multiple="inputItem.addConfig.multiple">
+                                                            <el-option v-for="option in inputItem.addConfig.options" :key="option.value"
+                                                                :label="option.label" :value="option.value"></el-option>
+                                                        </el-select>
+                                                        <el-checkbox v-if="inputItem.addConfig.type === 'boolean'" v-model="inputItem.value"
+                                                            :placeholder="inputItem.addConfig.placeholder"></el-checkbox>
+                                                        <el-input-number v-if="inputItem.addConfig.type === 'number'" v-model="inputItem.value"
+                                                            :placeholder="inputItem.addConfig.placeholder"></el-input-number>
+                                                        <div class="relative" v-if="inputItem.addConfig.type === 'filePath'">
+                                                            <InputValueVar @inputValueChange="inputValueChange" v-model="inputItem.value"
+                                                                :variables="_variables" :inputItem="inputItem">
+                                                            </InputValueVar>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                            </template>
+                                            <ElButton link type="danger" @click="deleteInputs(inputItemArr,index)">删除</ElButton>
+                                        </div>
+                                        <ElButton @click="addInput(inputItemArr)">添加选项</ElButton>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+                        
                     </div>
                 </div>
                 <div class="directive-params viewbox gap-2">

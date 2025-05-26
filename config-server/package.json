@@ -1,0 +1,23 @@
+{
+  "name": "config-server",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "build": "ncc build index.js -o config-server"
+  },
+  "desc": "ncc 命令全局安装 npm install -g @vercel/ncc",
+  "dependencies": {
+    "adm-zip": "^0.5.16",
+    "axios": "^1.9.0",
+    "body-parser": "^1.20.2",
+    "ejs": "^3.1.9",
+    "express": "^4.18.2",
+    "nodemon": "^3.0.2",
+    "ws": "^8.18.1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "配置服务器，提供配置文件的可视化编辑功能"
+}

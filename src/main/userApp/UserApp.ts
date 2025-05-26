@@ -282,16 +282,32 @@ export default class UserApp {
         mainJsContent.push(`let log = require("tuzirobot/commonUtil");`);
         mainJsContent.push(`let fs = require("fs");`);
         mainJsContent.push(`let { join } = require("path");`);
+        mainJsContent.push(`let tuziAppData = require("./tuziAppData.json");`);
+        mainJsContent.push(`for(let item of tuziAppData.globalVariables){`);
+
+        mainJsContent.push(`    if(item.type === 'string'){`);
+        mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = item.value;`);
+        mainJsContent.push(`    }else if(item.type === 'number'){`);
+        mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = Number(item.value);`);
+        mainJsContent.push(`    }else if(item.type === 'boolean'){`);
+        mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = Boolean(item.value);`);
+        mainJsContent.push(`    }else if(item.type === 'object'){`);
+        mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = JSON.parse(item.value);`);
+        mainJsContent.push(`    }`);
+        mainJsContent.push(`}`);
+
+
         mainJsContent.push(`globalThis._block = {};`);
-        this.globalVariables.forEach((globalVar) => {
-            let value = globalVar.value;
-            if (globalVar.type === 'string') {
-                value = `${JSON.stringify(value)}`;
-            }
-            mainJsContent.push(
-                `globalThis._GLOBAL_${globalVar.name} = ${value}; // ${globalVar.display}`
-            );
-        });
+    
+        // this.globalVariables.forEach((globalVar) => {
+        //     let value = globalVar.value;
+        //     if (globalVar.type === 'string') {
+        //         value = `${JSON.stringify(value)}`;
+        //     }
+        //     mainJsContent.push(
+        //         `globalThis._GLOBAL_${globalVar.name} = ${value}; // ${globalVar.display}`
+        //     );
+        // });
         mainJsContent.push(
             `globalThis.curApp = {startRunTime: Date.now(), APP_ID: "${this.id}", APP_NAME: "${this.name}", APP_VERSION: "${this.version}", APP_DIR: __dirname};`
         );
@@ -311,7 +327,7 @@ export default class UserApp {
             });
             
             process.on("beforeExit", (code) => {
-                console.debug("beforeExit");
+                console.debug("程序退出：" + code);
                 process.exit(code);
             });
             const isDebugging = process.execArgv.some(arg => arg.startsWith('--inspect'));
@@ -326,6 +342,73 @@ export default class UserApp {
         mainJsContent.push(`  mainFlow();`);
         mainJsContent.push(`}, 1000);`);
         fs.writeFileSync(path.join(this.appDir, 'main.js'), mainJsContent.join('\n'));
+    }
+
+    
+    /**
+     * 生成打包后的main.js文件内容
+     */
+    generatePackageMainJs() {
+        // 写入index.js文件
+        const mainJsContent: string[] = [];
+
+        mainJsContent.push(`let log = require("tuzirobot/commonUtil");`);
+        mainJsContent.push(`let fs = require("fs");`);
+        mainJsContent.push(`let { join } = require("path");`);
+        mainJsContent.push(`let tuziAppData = require("./tuziAppData.json");`);
+        mainJsContent.push(`for(let item of tuziAppData.globalVariables){`);
+
+        mainJsContent.push(`    if(item.type === 'string'){`);
+        mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = item.value;`);
+        mainJsContent.push(`    }else if(item.type === 'number'){`);
+        mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = Number(item.value);`);
+        mainJsContent.push(`    }else if(item.type === 'boolean'){`);
+        mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = Boolean(item.value);`);
+        mainJsContent.push(`    }else if(item.type === 'object'){`);
+        mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = JSON.parse(item.value);`);
+        mainJsContent.push(`    }`);
+        mainJsContent.push(`}`);
+
+
+        mainJsContent.push(`globalThis._block = {};`);
+    
+        // this.globalVariables.forEach((globalVar) => {
+        //     let value = globalVar.value;
+        //     if (globalVar.type === 'string') {
+        //         value = `${JSON.stringify(value)}`;
+        //     }
+        //     mainJsContent.push(
+        //         `globalThis._GLOBAL_${globalVar.name} = ${value}; // ${globalVar.display}`
+        //     );
+        // });
+        mainJsContent.push(
+            `globalThis.curApp = {startRunTime: Date.now(), APP_ID: "${this.id}", APP_NAME: "${this.name}", APP_VERSION: "${this.version}", APP_DIR: __dirname};`
+        );
+        mainJsContent.push(
+            `globalThis._tuziAppInfo = {SERSION: "${app.getVersion()}", INSTALL_DIR: __dirname, USER_DIR: __dirname };`
+        );
+        mainJsContent.push(
+            `const logsDir = join(__dirname,'logs');if(!fs.existsSync(logsDir)){fs.mkdirSync(logsDir)}`
+        );
+        mainJsContent.push(
+            `log.setLogFile(join(logsDir,(process.env.RUN_LOG_ID??Date.now()) + '.log'));`
+        );
+        mainJsContent.push(`// child.js
+            process.on('uncaughtException', (err) => {
+                console.error(err.stack);
+                process.exit(1);
+            });
+            
+            process.on("beforeExit", (code) => {
+                console.debug("程序退出：" + code);
+                process.exit(code);
+            });
+        `);
+        mainJsContent.push(``);
+        mainJsContent.push(`  const mainFlow = require('./main.flow');`);
+        mainJsContent.push(`  mainFlow();`);
+        mainJsContent.push(``);
+        return mainJsContent.join('\n');
     }
 
     get workStatus() {
@@ -710,7 +793,6 @@ export default class UserApp {
             globals[`_GLOBAL_${globalVar.name}`] = true;
         });
         const lintResult = await lintFiles(files, globals);
-        console.log(lintResult);
         const errorList: FlowError[] = [];
         lintResult.forEach((result) => {
             const flow = this.flows.find((flow) => flow.jsFilePath === result.filePath);

@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置编辑器</title>
+    <!-- 引入CDN依赖 -->
+    <link href="https://cdn.staticfile.net/element-plus/2.5.1/index.css" rel="stylesheet">
+    <script src="https://cdn.staticfile.net/vue/3.3.4/vue.global.min.js"></script>
+    <script src="https://cdn.staticfile.net/element-plus/2.5.1/index.full.min.js"></script>
+    <script src="https://cdn.staticfile.net/element-plus-icons-vue/2.3.1/global.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            font-family: Arial, sans-serif;
+        }
+        #app {
+            min-height: 100vh;
+        }
+        .main-container {
+            padding: 20px;
+        }
+        .app-header {
+            padding: 0 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+        .app-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .log-container {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .log-info { color: #409EFF; }
+        .log-success { color: #67C23A; }
+        .log-error { color: #F56C6C; }
+        .log-output { color: #606266; }
+        .log-timestamp {
+            color: #909399;
+            font-size: 0.8em;
+            margin-right: 8px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-running {
+            background-color: #67C23A;
+        }
+        .status-stopped {
+            background-color: #909399;
+        }
+        .tab-content {
+            padding: 20px;
+            background: #fff;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+        .app-description {
+            line-height: 1.6;
+            color: #606266;
+        }
+        .config-form {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .action-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .instruction-list {
+            list-style: none;
+            padding: 0;
+        }
+        .instruction-list li {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            line-height: 1.6;
+        }
+        .instruction-list li:before {
+            content: "•";
+            color: #409EFF;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .update-info {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #e4e7ed;
+            border-radius: 4px;
+            background: #f8f9fa;
+        }
+        .update-available {
+            border-color: #67C23A;
+            background: #f0f9eb;
+        }
+        .version-compare {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .version-arrow {
+            color: #409EFF;
+            font-size: 20px;
+        }
+        .update-description {
+            margin: 10px 0;
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <el-container>
+            <el-header class="app-header">
+                <div class="header-content">
+                    <div class="app-info">
+                        <h2>{{ appInfo.name }}</h2>
+                        <el-tag>v{{ appInfo.version }}</el-tag>
+                        <el-tag :type="programStatus.isRunning ? 'success' : 'info'">
+                            <span class="status-indicator" :class="programStatus.isRunning ? 'status-running' : 'status-stopped'"></span>
+                            {{ programStatus.isRunning ? '运行中' : '已停止' }}
+                        </el-tag>
+                        <el-tag v-if="updateInfo.hasUpdate" type="warning">发现新版本</el-tag>
+                    </div>
+                </div>
+            </el-header>
+            
+            <el-main class="main-container">
+                <el-tabs v-model="activeTab">
+                    <!-- 应用信息标签页 -->
+                    <el-tab-pane label="应用信息" name="info">
+                        <div class="tab-content">
+                            <h3>应用详情</h3>
+                            <div class="app-description">
+                                <p><strong>应用名称：</strong>{{ appInfo.name }}</p>
+                                <p><strong>版本号：</strong>{{ appInfo.version }}</p>
+                                <p><strong>描述：</strong>{{ appInfo.description }}</p>
+                            </div>
+                        </div>
+                    </el-tab-pane>
+
+                    <!-- 使用说明标签页 -->
+                    <el-tab-pane label="使用说明" name="instructions">
+                        <div class="tab-content">
+                            <h3>使用说明</h3>
+                            <ul class="instruction-list">
+                                <li>首先在"配置"标签页中设置必要的配置项</li>
+                                <li>确保所有配置项都已正确填写</li>
+                                <li>切换到"开始使用"标签页</li>
+                                <li>点击"运行"按钮启动程序</li>
+                                <li>可以随时在"开始使用"标签页查看运行日志</li>
+                                <li>如需停止程序，点击"停止"按钮即可</li>
+                            </ul>
+                        </div>
+                    </el-tab-pane>
+
+                    <!-- 配置标签页 -->
+                    <el-tab-pane label="配置" name="config">
+                        <div class="tab-content">
+                            <el-form class="config-form" label-width="120px">
+                                <el-form-item
+                                    v-for="item in exposedVariables"
+                                    :key="item.name"
+                                    :label="item.name">
+                                    <template #label>
+                                        <span>{{ item.name }}</span>
+                                        <el-tag size="small" style="margin-left: 5px">{{ item.type }}</el-tag>
+                                    </template>
+                                    <el-input
+                                        v-if="item.type !== 'boolean'"
+                                        v-model="item.value"
+                                        :type="item.type === 'number' ? 'number' : 'text'"
+                                        :placeholder="'请输入' + (item.display || item.name)">
+                                    </el-input>
+                                    <el-switch
+                                        v-else
+                                        v-model="item.value"
+                                        :active-value="true"
+                                        :inactive-value="false">
+                                    </el-switch>
+                                </el-form-item>
+                                <el-form-item>
+                                    <el-button type="primary" @click="saveConfig">保存配置</el-button>
+                                </el-form-item>
+                            </el-form>
+                        </div>
+                    </el-tab-pane>
+
+                    <!-- 开始使用标签页 -->
+                    <el-tab-pane label="开始使用" name="start">
+                        <div class="tab-content">
+                            <div class="action-container">
+                                <el-button 
+                                    v-if="!programStatus.isRunning"
+                                    type="success" 
+                                    size="large"
+                                    @click="runProgram"
+                                    :loading="isLoading">
+                                    <el-icon><video-play /></el-icon>
+                                    运行程序
+                                </el-button>
+                                <el-button 
+                                    v-else
+                                    type="danger" 
+                                    size="large"
+                                    @click="stopProgram"
+                                    :loading="isLoading">
+                                    <el-icon><video-pause /></el-icon>
+                                    停止程序
+                                </el-button>
+                            </div>
+
+                            <el-card>
+                                <template #header>
+                                    <div class="card-header">
+                                        <span>运行日志</span>
+                                        <el-button type="primary" link @click="clearLogs">
+                                            清除日志
+                                        </el-button>
+                                    </div>
+                                </template>
+                                <div class="log-container" id="logContainer"></div>
+                            </el-card>
+                        </div>
+                    </el-tab-pane>
+
+                    <!-- 更新配置标签页 -->
+                    <el-tab-pane label="更新" name="update">
+                        <div class="tab-content">
+                            <el-form class="config-form" label-width="120px">
+                                <el-form-item label="更新服务器地址">
+                                    <el-input 
+                                        v-model="updateServerUrl"
+                                        placeholder="请输入更新服务器地址"
+                                        :disabled="isChecking">
+                                    </el-input>
+                                </el-form-item>
+                                <el-form-item label="覆盖配置文件">
+                                    <el-switch
+                                        v-model="overwriteConfig"
+                                        :active-value="true"
+                                        :inactive-value="false">
+                                    </el-switch>
+                                    <div style="color: #909399; font-size: 12px; margin-top: 5px;">
+                                        开启后，更新时将覆盖原有配置文件 (tuziAppData.json)
+                                    </div>
+                                </el-form-item>
+                                <el-form-item>
+                                    <el-button 
+                                        type="primary" 
+                                        @click="saveUpdateConfig"
+                                        :loading="isSaving">
+                                        保存配置
+                                    </el-button>
+                                    <el-button 
+                                        type="success" 
+                                        @click="checkUpdate"
+                                        :loading="isChecking">
+                                        检查更新
+                                    </el-button>
+                                </el-form-item>
+                            </el-form>
+
+                            <!-- 更新信息展示 -->
+                            <div v-if="updateInfo.checked" 
+                                 class="update-info"
+                                 :class="{'update-available': updateInfo.hasUpdate}">
+                                <template v-if="updateInfo.hasUpdate">
+                                    <h4>发现新版本</h4>
+                                    <div class="version-compare">
+                                        <el-tag size="small">当前版本：v{{ appInfo.version }}</el-tag>
+                                        <span class="version-arrow">→</span>
+                                        <el-tag type="success" size="small">最新版本：v{{ updateInfo.version }}</el-tag>
+                                    </div>
+                                    <p><strong>更新时间：</strong>{{ updateInfo.lastTime }}</p>
+                                    <div class="update-description">
+                                        <strong>更新说明：</strong>
+                                        <p>{{ updateInfo.description }}</p>
+                                    </div>
+                                    <el-button 
+                                        type="primary"
+                                        @click="startUpdate"
+                                        :loading="isUpdating"
+                                        :disabled="programStatus.isRunning">
+                                        {{ programStatus.isRunning ? '请先停止程序再更新' : '立即更新' }}
+                                    </el-button>
+                                </template>
+                                <template v-else>
+                                    <el-result
+                                        icon="success"
+                                        title="已是最新版本"
+                                        sub-title="当前已经是最新版本，无需更新">
+                                    </el-result>
+                                </template>
+                            </div>
+                        </div>
+                    </el-tab-pane>
+                </el-tabs>
+            </el-main>
+        </el-container>
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+        const { ElMessage } = ElementPlus;
+
+        const app = createApp({
+            setup() {
+                // 数据
+                const appInfo = ref(<%- JSON.stringify(appInfo) %>);
+                const config = ref(<%- JSON.stringify(config) %>);
+                const activeTab = ref('info');
+                const programStatus = ref({ isRunning: false, pid: null });
+                const isLoading = ref(false);
+                const updateServerUrl = ref('');
+                const overwriteConfig = ref(false);
+                const isChecking = ref(false);
+                const isSaving = ref(false);
+                const isUpdating = ref(false);
+                const updateInfo = ref({
+                    checked: false,
+                    hasUpdate: false,
+                    version: '',
+                    lastTime: '',
+                    description: '',
+                    file: '',
+                    updateModule: ''
+                });
+                
+                // 计算属性
+                const exposedVariables = computed(() => {
+                    return config.value.globalVariables.filter(v => v.exposed);
+                });
+
+                // WebSocket 连接
+                const ws = new WebSocket(`ws://${location.host}`);
+                
+                ws.onopen = () => {
+                    addLog('info', '已连接到服务器');
+                };
+                
+                ws.onclose = () => {
+                    addLog('error', '与服务器断开连接');
+                };
+                
+                ws.onmessage = (event) => {
+                    const log = JSON.parse(event.data);
+                    addLog(log.type, log.message, log.timestamp);
+                };
+
+                // 方法
+                function addLog(type, message, timestamp = new Date().toISOString()) {
+                    const container = document.getElementById('logContainer');
+                    const entry = document.createElement('div');
+                    entry.className = `log-entry log-${type}`;
+                    
+                    const time = document.createElement('span');
+                    time.className = 'log-timestamp';
+                    time.textContent = new Date(timestamp).toLocaleTimeString();
+                    
+                    const content = document.createElement('span');
+                    content.textContent = message;
+                    
+                    entry.appendChild(time);
+                    entry.appendChild(content);
+                    container.appendChild(entry);
+                    
+                    container.scrollTop = container.scrollHeight;
+                }
+
+                function clearLogs() {
+                    const container = document.getElementById('logContainer');
+                    container.innerHTML = '';
+                }
+
+                async function saveConfig() {
+                    try {
+                        const response = await fetch('/save', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(config.value)
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            ElMessage.success('配置保存成功');
+                        } else {
+                            ElMessage.error('保存失败：' + result.error);
+                        }
+                    } catch (error) {
+                        ElMessage.error('保存失败：' + error.message);
+                    }
+                }
+
+                // 检查程序状态
+                async function checkStatus() {
+                    try {
+                        const response = await fetch('/status');
+                        const status = await response.json();
+                        programStatus.value = status;
+                    } catch (error) {
+                        console.error('获取状态失败：', error);
+                    }
+                }
+
+                // 定期检查状态
+                onMounted(() => {
+                    checkStatus();
+                    setInterval(checkStatus, 5000); // 每5秒检查一次
+                });
+
+                // 运行程序
+                async function runProgram() {
+                    try {
+                        isLoading.value = true;
+                        const response = await fetch('/run', { method: 'POST' });
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            ElMessage.success('程序已启动');
+                            await checkStatus();
+                        } else {
+                            ElMessage.error('启动失败：' + result.error);
+                        }
+                    } catch (error) {
+                        ElMessage.error('启动失败：' + error.message);
+                    } finally {
+                        isLoading.value = false;
+                    }
+                }
+
+                // 停止程序
+                async function stopProgram() {
+                    try {
+                        isLoading.value = true;
+                        const response = await fetch('/stop', { method: 'POST' });
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            ElMessage.success('程序已停止');
+                            await checkStatus();
+                        } else {
+                            ElMessage.error('停止失败：' + result.error);
+                        }
+                    } catch (error) {
+                        ElMessage.error('停止失败：' + error.message);
+                    } finally {
+                        isLoading.value = false;
+                    }
+                }
+
+                // 保存更新服务器配置
+                async function saveUpdateConfig() {
+                    try {
+                        isSaving.value = true;
+                        const response = await fetch('/saveUpdateConfig', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({ 
+                                updateServerUrl: updateServerUrl.value,
+                                overwriteConfig: overwriteConfig.value
+                            })
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            ElMessage.success('更新服务器配置保存成功');
+                        } else {
+                            ElMessage.error('保存失败：' + result.error);
+                        }
+                    } catch (error) {
+                        ElMessage.error('保存失败：' + error.message);
+                    } finally {
+                        isSaving.value = false;
+                    }
+                }
+
+                // 检查更新
+                async function checkUpdate() {
+                    try {
+                        isChecking.value = true;
+                        const response = await fetch('/checkUpdate');
+                        const result = await response.json();
+                        if (!result.success) {
+                            ElMessage.error('检查更新失败：' + result.error);
+                            return;
+                        }
+
+                        updateInfo.value = {
+                            checked: true,
+                            hasUpdate: result.hasUpdate,
+                            version: result.version,
+                            lastTime: result.lastTime,
+                            description: result.description,
+                            file: result.file,
+                            updateModule: result.updateModule
+                        };
+
+                        
+                    } catch (error) {
+                        ElMessage.error('检查更新失败：' + error.message);
+                    } finally {
+                        isChecking.value = false;
+                    }
+                }
+
+                // 开始更新
+                async function startUpdate() {
+                    if (programStatus.value.isRunning) {
+                        ElMessage.warning('请先停止程序再进行更新');
+                        return;
+                    }
+
+                    try {
+                        isUpdating.value = true;
+                        const response = await fetch('/startUpdate', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(updateInfo.value)
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            ElMessage.success('更新成功，请重启程序');
+                            updateInfo.value.checked = false;
+                            // 重新获取应用信息
+                            const appInfoResponse = await fetch('/appInfo');
+                            const appInfoResult = await appInfoResponse.json();
+                            if (appInfoResult.success) {
+                                appInfo.value = appInfoResult.data;
+                            }
+                        } else {
+                            ElMessage.error('更新失败：' + result.error);
+                        }
+                    } catch (error) {
+                        ElMessage.error('更新失败：' + error.message);
+                    } finally {
+                        isUpdating.value = false;
+                    }
+                }
+
+                // 获取更新服务器配置
+                async function getUpdateConfig() {
+                    try {
+                        const response = await fetch('/getUpdateConfig');
+                        const result = await response.json();
+                        if (result.success) {
+                            updateServerUrl.value = result.updateServerUrl || '';
+                            overwriteConfig.value = result.overwriteConfig || false;
+                        }
+                    } catch (error) {
+                        console.error('获取更新配置失败：', error);
+                    }
+                }
+
+                // 初始化
+                onMounted(() => {
+                    getUpdateConfig();
+                    // ... existing mounted logic ...
+                });
+
+                return {
+                    appInfo,
+                    config,
+                    activeTab,
+                    exposedVariables,
+                    programStatus,
+                    isLoading,
+                    clearLogs,
+                    saveConfig,
+                    runProgram,
+                    stopProgram,
+                    updateServerUrl,
+                    overwriteConfig,
+                    isChecking,
+                    isSaving,
+                    isUpdating,
+                    updateInfo,
+                    saveUpdateConfig,
+                    checkUpdate,
+                    startUpdate
+                };
+            }
+        });
+
+        app.use(ElementPlus);
+        app.mount('#app');
+    </script>
+</body>
+</html> 
