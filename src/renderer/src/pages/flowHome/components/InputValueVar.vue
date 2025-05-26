@@ -122,7 +122,7 @@ function selectXpathSelector(elementInfo: any) {
 
 <template>
     <div class="relative tracking-wider flex gap-1 items-center">
-        <div style="width: 120px;" v-if="inputItem.type === 'object'">
+        <div style="width: 60px;" v-if="inputItem.type === 'object'">
             <el-select @change="enableExpressionToggle" class="w-full" v-model="inputItem.objectMode" placeholder="解析模式">
                 <el-option label="文本模式" value="string">文本模式 (支持文本、变量混合输入 最终结果会被解析为文本)</el-option>
                 <el-option label="表达式模式" value="expression">表达式模式 (最终结果会被解析为表达式)</el-option>
@@ -146,9 +146,9 @@ function selectXpathSelector(elementInfo: any) {
                         <div class="text-gray-500 text-sm cursor-pointer hover:text-blue-500"
                             v-if="inputItem.addConfig.type === 'filePath'" @click="filePathSelect($event, inputItem)">
                             {{ inputItem.addConfig.openDirectory ? '选择文件夹' : '选择文件' }}</div>
-                        <div class="text-gray-500 text-sm cursor-pointer hover:text-blue-500" ref="buttonRef"
+                        <div class="text-gray-500 text-sm cursor-pointer hover:text-blue-500 fx" ref="buttonRef"
                             @click="varClick">
-                            使用变量</div>
+                            fx</div>
                     </div>
                 </template>
             </el-input>
@@ -309,4 +309,9 @@ function selectXpathSelector(elementInfo: any) {
 .active {
     z-index: 1000;
 }
+
+:deep(.el-input-group__append) {
+    padding: 0 4px;
+}
+
 </style>

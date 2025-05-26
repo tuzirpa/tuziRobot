@@ -404,6 +404,16 @@ export interface DirectiveTree {
         [key: string]: DirectiveInput;
     };
     /**
+     * 指令输入
+     */
+    inputs2?: {
+        [key: string]: {
+            name: string,
+            value: DirectiveInput[],
+            values?: DirectiveInput[][]
+        };
+    };
+    /**
      * 指令输出
      */
     outputs: {

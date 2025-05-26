@@ -26,8 +26,11 @@ export const sendStepLog = (message: any) => {
     }
 };
 
-export function typeToCode(inputItem: DirectiveInput) {
-    
+export function typeToCode(inputItem?: DirectiveInput) {
+    if(!inputItem){
+        return 'undefined';
+    }
+
     if (inputItem.type === 'string' || inputItem.type === 'textarea') {
         inputItem.value = inputItem.value || '';
         let value = inputItem.value;

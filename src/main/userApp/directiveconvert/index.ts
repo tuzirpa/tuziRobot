@@ -13,12 +13,10 @@ const defaultToCode = (directive: DirectiveTree, blockCode: string) => {
     let params = '';
     //拼写参数列表
     const inputKeys = Object.keys(directive.inputs);
-    if (inputKeys.length === 0) {
-        params = '{}';
-    } else {
-        const paramArr: string[] = [];
-        paramArr.push('{');
-        const inputValueArr: string[] = [];
+    const paramArr: string[] = [];
+    paramArr.push('{');
+    const inputValueArr: string[] = [];
+    if (inputKeys.length > 0) {
         inputKeys.forEach((key) => {
             const input = directive.inputs[key];
             let codeValue = '';
@@ -33,10 +31,38 @@ const defaultToCode = (directive: DirectiveTree, blockCode: string) => {
             }
             inputValueArr.push(`"${key}":${codeValue}`);
         });
-        paramArr.push(inputValueArr.join(','));
-        paramArr.push('}');
-        params = paramArr.join('');
     }
+    if(directive.inputs2){
+        const inputKeys2 = Object.keys(directive.inputs2);
+        if (inputKeys2.length > 0) {
+            inputKeys2.forEach((key) => {
+                //@ts-ignore
+                const input = directive.inputs2[key];
+                let inputCode: string[] = [];
+                input.values?.forEach(ivalue=>{
+                    let iInputCode: string[] = [];
+                    ivalue.forEach(item=>{
+                        let codeValue = '';
+                        if (item.type === 'variable') {
+                            codeValue = item.value === '' ? 'undefined' : item.value;
+                        } else if (item.type === 'array') {
+                            codeValue = `[${item.value}]`;
+                        } else if (item.type === 'arrayObject') {
+                            codeValue = `${item.value}`;
+                        } else {
+                            codeValue = typeToCode(item);
+                        }
+                        iInputCode.push(`${codeValue}`);
+                    })
+                    inputCode.push(`[${iInputCode.join(',')}]`);
+                })
+                inputValueArr.push(`"${key}":[${inputCode}]`);
+            });
+        }
+    }
+    paramArr.push(inputValueArr.join(','));
+    paramArr.push('}');
+    params = paramArr.join('');
 
     let thenRes = '';
     const outputKeys = Object.keys(directive.outputs);

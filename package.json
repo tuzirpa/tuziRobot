@@ -1,6 +1,6 @@
 {
     "name": "tuzi_rpa",
-    "version": "2.6.0",
+    "version": "2.7.0",
     "description": "一个可以搭积木方式编程的自动化Rpa软件",
     "main": "./out/main/index.js",
     "author": "tuzirpa.vtool.vip",
@@ -39,7 +39,6 @@
         "node-machine-id": "^1.1.12",
         "puppeteer-core": "^22.15.0",
         "qiniu": "^7.12.0",
-        "unplugin-vue-setup-extend-plus": "^1.0.1",
         "uuid": "^9.0.1",
         "ws": "^8.17.0"
     },
@@ -80,6 +79,7 @@
         "vue-qrcode": "^2.2.2",
         "vue-router": "^4.3.0",
         "vue-tsc": "^1.8.27",
-        "vuedraggable": "^4.1.0"
+        "vuedraggable": "^4.1.0",
+        "unplugin-vue-setup-extend-plus": "^1.0.1"
     }
 }
