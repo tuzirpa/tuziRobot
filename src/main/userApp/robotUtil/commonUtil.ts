@@ -2,6 +2,17 @@ import path from 'path';
 import { Block, DirectiveInput, LogLevel } from '../types';
 import { WebSocket } from 'ws';
 import fs from 'fs';
+import { AsyncLocalStorage } from 'async_hooks';
+
+interface BlockContext {
+    block: Block;
+}
+
+export const blockContext = new AsyncLocalStorage<BlockContext>();
+
+export function getCurrentBlock(): Block | undefined {
+    return blockContext.getStore()?.block;
+}
 
 export const olog = console.log;
 export const oerror = console.error;
@@ -188,15 +199,16 @@ export function setLogFile(filePath: string) {
         fatalError: '致命'
     };
     function log(level: LogLevel, _block: Block, ...args: any[]) {
+        const block = getCurrentBlock() || _block;
         const message = args.join(' ');
         const levelStr = levelMap[level];
         const content =
             // @ts-ignore
-            `[${levelStr}] [${_block.flowAliasName}:(行: ${_block.blockLine})] [${new Date().Format('yyyy-MM-dd hh:mm:ss.S')}]:` +
+            `[${levelStr}] [${block.flowAliasName}:(行: ${block.blockLine})] [${new Date().Format('yyyy-MM-dd hh:mm:ss.S')}]:` +
             message;
         logFileWriteStream.write(content + '\n');
         if (process.env.TUZI_ENV === 'app') {
-            sendLog(level, message, _block);
+            sendLog(level, message, block);
         } else {
             olog(content);
         }
