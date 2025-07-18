@@ -1,6 +1,6 @@
 import fs from 'fs';
 import type { Block } from '../types';
-import { sendLog } from './commonUtil';
+import { sendLog, blockContext } from './commonUtil';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -20,64 +20,76 @@ export const robotUtil = {
     system
 };
 
-//循环执行指令 给指令套上一层 异常处理
+// 异常类：支持堆栈叠加
+class WrappedError extends Error {
+    constructor(message: string, public cause?: Error) {
+        super(message);
+        this.name = 'WrappedError';
+        if (cause && cause.stack) {
+            this.stack += '\n\n↓ Caused by ↓\n' + cause.stack;
+        }
+    }
+}
+
+
+// 核心处理器：拦截 + 异常策略封装
 function forRobotUtil(obj: any) {
     for (const key in obj) {
         if (Object.prototype.hasOwnProperty.call(obj, key)) {
             const value = obj[key];
+
             if (typeof value === 'function') {
-                let retryCountNum = 0;
-                obj[key] = async function aaa(...args: any[]) {
+                obj[key] = async function wrappedFn(...args: any[]) {
                     const blockInfo = args[args.length - 1] as Block;
-                    try {
-                        console['runStep'](`执行指令${blockInfo.directiveDisplayName}`);
+                    let retryCountNum = 0;
 
-                        const result = await (value as Function).apply(this, args);
-                        return result;
-                    } catch (error: any) {
-                        console.error(error.stack);
-                        if (blockInfo.failureStrategy === 'terminate') {
-                            globalThis._block = blockInfo;
-                            
-                            console.error(
-                                `执行指令 ${blockInfo.directiveDisplayName} 异常,终止流程`
-                            );
-                            
-                            process.exit(1);
-                        } else if (blockInfo.failureStrategy === 'throw') {
-                            globalThis._block = blockInfo;
-                            
-                            console.error(
-                                `执行指令 ${blockInfo.directiveDisplayName} 异常,往上抛出异常`
-                            );
-                            //向上抛出异常，以便后续加入try-catch处理
-                            throw new Error(`执行指令 ${blockInfo.directiveDisplayName} 异常,往上抛出异常`);
-                            // process.exit(1);
-                        } else  if (blockInfo.failureStrategy === 'ignore') {
-                            console.error(
-                                `执行指令 ${blockInfo.directiveDisplayName} 异常 ,忽略错误`
-                            );
-                            return {};
-                        } else {
-                            retryCountNum++;
+                    return await blockContext.run({ block: blockInfo }, async () => {
+                        while (true) {
+                            try {
+                                console['runStep']?.(`执行指令 ${blockInfo.directiveDisplayName}`);
 
-                            if (retryCountNum > blockInfo.retryCount) {
-                                console.error(
-                                    `执行指令 ${blockInfo.directiveDisplayName} 异常 ,重试次数达到上限`
+                                const result = await (value as Function).apply(this, args);
+                                return result;
+
+                            } catch (error: any) {
+                                const wrapped = new WrappedError(
+                                    `${blockInfo.flowAliasName}[行: ${blockInfo.blockLine}] 执行指令 ${blockInfo.directiveDisplayName} 出错`,
+                                    error
                                 );
-                                throw new Error(`执行指令 ${blockInfo.directiveDisplayName} 异常 ,重试次数达到上限`);
-                            } else {
-                                console.error(
-                                    `执行指令 ${blockInfo.directiveDisplayName} 异常 ,${blockInfo.intervalTime} 秒后重试第${retryCountNum}次`
-                                );
+
+                                console.error(wrapped); // 注意：打印的是堆叠后的异常
+
+                                if (blockInfo.failureStrategy === 'terminate') {
+                                    console.error(`终止流程：${wrapped.stack}`);
+                                    process.exit(1);
+
+                                } else if (blockInfo.failureStrategy === 'throw') {
+                                    throw wrapped;
+
+                                } else if (blockInfo.failureStrategy === 'ignore') {
+                                    console.warn(`忽略异常：${wrapped.message}`);
+                                    return {};
+
+                                } else {
+                                    retryCountNum++;
+                                    if (retryCountNum > blockInfo.retryCount) {
+                                        console.error(`重试次数已达上限`);
+                                        throw new WrappedError(
+                                            `执行指令 ${blockInfo.directiveDisplayName} 重试失败`,
+                                            wrapped
+                                        );
+                                    } else {
+                                        console.warn(`第 ${retryCountNum} 次重试将在 ${blockInfo.intervalTime} 秒后进行`);
+                                        await sleep(blockInfo.intervalTime * 1000);
+                                        // 重试继续
+                                    }
+                                }
                             }
-                            await sleep(blockInfo.intervalTime * 1000);
-                            return aaa.apply(this, args);
                         }
-                    }
+                    });
                 };
-            } else {
-                forRobotUtil(value);
+            } else if (typeof value === 'object' && value !== null) {
+                forRobotUtil(value); // 递归处理嵌套
             }
         }
     }
