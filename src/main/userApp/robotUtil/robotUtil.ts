@@ -79,6 +79,7 @@ function forRobotUtil(obj: any) {
                                             wrapped
                                         );
                                     } else {
+                                        console.error(wrapped.stack); // 注意：打印的是堆叠后的异常
                                         console.warn(`第 ${retryCountNum} 次重试将在 ${blockInfo.intervalTime} 秒后进行`);
                                         await sleep(blockInfo.intervalTime * 1000);
                                         // 重试继续
