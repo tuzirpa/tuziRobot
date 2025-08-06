@@ -1,11 +1,11 @@
 {
   "name": "config-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "build": "ncc build index.js -o config-server"
+    "build": "ncc build index.js -C -o config-server"
   },
   "desc": "ncc 命令全局安装 npm install -g @vercel/ncc",
   "dependencies": {
