@@ -55,10 +55,10 @@ export class Packager {
                     return true;
                 }
                 
-                // 包含 main.js
-                if (fileName === 'main.js') {
-                    return true;
-                }
+                // // 包含 main.js
+                // if (fileName === 'main.js') {
+                //     return true;
+                // }
                 
                 // 包含 main.flow.js
                 if (fileName === 'main.flow.js') {
