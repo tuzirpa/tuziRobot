@@ -1,3 +1,4 @@
 {
-  "updateServerUrl": "http://127.0.0.1:8080"
+  "updateServerUrl": "http://127.0.0.1:8080",
+  "overwriteConfig": false
 }

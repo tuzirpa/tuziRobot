@@ -27,6 +27,11 @@ const STARTINDEXJS = path.join(__dirname, '../app', 'main.js');
 // 程序运行状态跟踪
 let currentProcess = null;
 let isRunning = false;
+let restartCount = 0;
+let maxRestartAttempts = 5; // 最大重启次数
+let restartDelay = 3000; // 重启延迟（毫秒）
+let autoRestartEnabled = true; // 是否启用自动重启
+let isManuallyStopped = false; // 是否被手动停止
 
 // WebSocket 连接管理
 let connections = new Set();
@@ -177,22 +182,6 @@ async function runStartBat() {
         throw new Error('程序已在运行中');
     }
 
-    // 首先检查文件是否存在
-    // const fileStatus = await checkFile(START_BAT);
-    // console.log('start.bat 文件状态：', fileStatus);
-    // broadcastLog('info', 'start.bat 文件状态：' + JSON.stringify(fileStatus));
-    
-    // if (!fileStatus.exists) {
-    //     const error = `找不到文件：${START_BAT}`;
-    //     broadcastLog('error', error);
-    //     throw new Error(error);
-    // }
-    
-    // if (!fileStatus.isFile) {
-    //     const error = `${START_BAT} 不是一个有效的文件`;
-    //     broadcastLog('error', error);
-    //     throw new Error(error);
-    // }
     //判断node是否存在
     const nodeExists = fs.existsSync(nodeDir);
     let nodeExeFile = 'node'
@@ -207,6 +196,7 @@ async function runStartBat() {
         currentProcess = spawn(nodeExeFile, [STARTINDEXJS]);
         
         isRunning = true;
+        isManuallyStopped = false; // 重置手动停止标志
         broadcastLog('success', '程序已启动运行');
     
 
@@ -227,6 +217,41 @@ async function runStartBat() {
             broadcastLog('info', '进程退出码：' + code);
             isRunning = false;
             currentProcess = null;
+            
+            // 如果是手动停止，不进行重启
+            if (isManuallyStopped) {
+                console.log('程序被手动停止，不进行自动重启');
+                broadcastLog('info', '程序被手动停止，不进行自动重启');
+                isManuallyStopped = false; // 重置标志
+                restartCount = 0; // 重置重启计数
+                return;
+            }
+            
+            // 检查退出码，只有非零退出码才认为是异常退出
+            if (code !== 0 && code !== null) {
+                // 异常退出，检查是否需要自动重启
+                if (autoRestartEnabled && restartCount < maxRestartAttempts) {
+                    restartCount++;
+                    console.log(`程序异常退出（退出码：${code}），${restartDelay/1000}秒后进行第${restartCount}次重启...`);
+                    broadcastLog('warning', `程序异常退出（退出码：${code}），${restartDelay/1000}秒后进行第${restartCount}次重启...`);
+                    
+                    setTimeout(() => {
+                        runStartBat().catch(error => {
+                            console.error('自动重启失败：', error.message);
+                            broadcastLog('error', '自动重启失败：' + error.message);
+                        });
+                    }, restartDelay);
+                } else if (restartCount >= maxRestartAttempts) {
+                    console.log('已达到最大重启次数，停止自动重启');
+                    broadcastLog('error', '已达到最大重启次数，停止自动重启');
+                    restartCount = 0; // 重置重启计数
+                }
+            } else {
+                // 正常退出（退出码为0或null），重置重启计数
+                console.log('程序正常退出，重置重启计数');
+                broadcastLog('info', '程序正常退出，重置重启计数');
+                restartCount = 0;
+            }
         });
 
         currentProcess.on('error', (error) => {
@@ -234,6 +259,25 @@ async function runStartBat() {
             broadcastLog('error', '进程错误：' + error.message);
             isRunning = false;
             currentProcess = null;
+            
+            // 检查是否需要自动重启
+            if (autoRestartEnabled && restartCount < maxRestartAttempts) {
+                restartCount++;
+                console.log(`进程启动错误，${restartDelay/1000}秒后进行第${restartCount}次重启...`);
+                broadcastLog('warning', `进程启动错误，${restartDelay/1000}秒后进行第${restartCount}次重启...`);
+                
+                setTimeout(() => {
+                    runStartBat().catch(error => {
+                        console.error('自动重启失败：', error.message);
+                        broadcastLog('error', '自动重启失败：' + error.message);
+                    });
+                }, restartDelay);
+            } else if (restartCount >= maxRestartAttempts) {
+                console.log('已达到最大重启次数，停止自动重启');
+                broadcastLog('error', '已达到最大重启次数，停止自动重启');
+                restartCount = 0; // 重置重启计数
+            }
+            
             reject(error);
         });
         resolve();
@@ -248,9 +292,14 @@ async function stopProgram() {
     
     return new Promise((resolve, reject) => {
         try {
+            isManuallyStopped = true; // 设置手动停止标志
             currentProcess.kill();
             isRunning = false;
             currentProcess = null;
+            // 重置重启计数
+            restartCount = 0;
+            console.log('程序已停止，重启计数已重置');
+            broadcastLog('info', '程序已停止，重启计数已重置');
             resolve();
         } catch (error) {
             console.error('停止程序时发生错误：', error);
@@ -303,7 +352,13 @@ app.post('/run', async (req, res) => {
 app.get('/status', (req, res) => {
     res.json({ 
         isRunning,
-        pid: currentProcess ? currentProcess.pid : null
+        pid: currentProcess ? currentProcess.pid : null,
+        restartInfo: {
+            autoRestartEnabled,
+            maxRestartAttempts,
+            currentRestartCount: restartCount,
+            restartDelay
+        }
     });
 });
 
@@ -316,6 +371,92 @@ app.post('/stop', async (req, res) => {
         const errorMessage = error.message || '未知错误';
         console.error('停止失败：', errorMessage);
         res.status(500).json({ error: errorMessage });
+    }
+});
+
+// 获取自动重启配置
+app.get('/restartConfig', (req, res) => {
+    res.json({
+        success: true,
+        autoRestartEnabled,
+        maxRestartAttempts,
+        restartDelay,
+        currentRestartCount: restartCount
+    });
+});
+
+// 更新自动重启配置
+app.post('/updateRestartConfig', (req, res) => {
+    try {
+        const { autoRestartEnabled: enabled, maxRestartAttempts: maxAttempts, restartDelay: delay } = req.body;
+        
+        if (typeof enabled === 'boolean') {
+            autoRestartEnabled = enabled;
+        }
+        
+        if (typeof maxAttempts === 'number' && maxAttempts >= 0) {
+            maxRestartAttempts = maxAttempts;
+        }
+        
+        if (typeof delay === 'number' && delay >= 1000) {
+            restartDelay = delay;
+        }
+        
+        // 重置重启计数
+        restartCount = 0;
+        
+        console.log('自动重启配置已更新');
+        broadcastLog('success', '自动重启配置已更新');
+        
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 手动重置重启计数
+app.post('/resetRestartCount', (req, res) => {
+    restartCount = 0;
+    console.log('重启计数已重置');
+    broadcastLog('info', '重启计数已重置');
+    res.json({ success: true });
+});
+
+// 获取日志设置
+app.get('/logSettings', (req, res) => {
+    try {
+        const logSettingsPath = path.join(__dirname, 'logSettings.json');
+        let settings = { maxLogLines: 500, autoScroll: true };
+        
+        if (fs.existsSync(logSettingsPath)) {
+            const data = fs.readFileSync(logSettingsPath, 'utf8');
+            settings = JSON.parse(data);
+        }
+        
+        res.json({ success: true, ...settings });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// 保存日志设置
+app.post('/saveLogSettings', (req, res) => {
+    try {
+        const { maxLogLines, autoScroll } = req.body;
+        const settings = {
+            maxLogLines: maxLogLines,
+            autoScroll: autoScroll !== false
+        };
+        
+        const logSettingsPath = path.join(__dirname, 'logSettings.json');
+        fs.writeFileSync(logSettingsPath, JSON.stringify(settings, null, 2));
+        
+        console.log('日志设置已保存');
+        broadcastLog('success', '日志设置已保存');
+        
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

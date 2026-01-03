@@ -14,7 +14,7 @@ export default class Flow {
     }
 
     blocks: DirectiveTree[] = [];
-    static headLinkCount = 9;
+    static headLinkCount = 10;
 
     constructor(
         public appDir: string,
@@ -104,6 +104,12 @@ export default class Flow {
         content.push(`const generateBlock = robotUtilAll.generateBlock;`);
         content.push(`const fatalError = robotUtilAll.fatalError;`);
 
+        
+
+        content.push(
+            `module.exports = async function (${this.isMainFlow ? '' : '{ _callParams }'}) {`
+        );
+        content.push(`let _returnVal = [];//流程返回值`);
         // 添加变量声明
         const variables = this.getVariables();
         if (variables.length > 0) {
@@ -113,11 +119,7 @@ export default class Flow {
             content.push('//变量声明');
             content.push(`//无变量`);
         }
-
-        content.push(
-            `module.exports = async function (${this.isMainFlow ? '' : '{ _callParams }'}) {`
-        );
-        content.push(`let _returnVal = [];//流程返回值`);
+        content.push(`await (async ()=>{`)
         let flowControlBlock = 0;
         for (let index = 0; index < this.blocks.length; index++) {
             const block = this.blocks[index];
@@ -150,6 +152,7 @@ export default class Flow {
 
             content.push(jsCode);
         }
+        content.push(`})()`);
         content.push(`return { returnVal: _returnVal };`);
         // content.push('  } catch (error) {');
         // content.push(`    fatalError(error,__filename);process.exit(1);`);

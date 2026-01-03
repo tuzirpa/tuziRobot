@@ -283,6 +283,7 @@ export default class UserApp {
         mainJsContent.push(`let fs = require("fs");`);
         mainJsContent.push(`let { join } = require("path");`);
         mainJsContent.push(`let tuziAppData = require("./tuziAppData.json");`);
+        mainJsContent.push(`const strToBoolean = (str)=> typeof str == 'boolean' ?str : str.toLowerCase() === "true"`);
         mainJsContent.push(`for(let item of tuziAppData.globalVariables){`);
 
         mainJsContent.push(`    if(item.type === 'string'){`);
@@ -290,7 +291,7 @@ export default class UserApp {
         mainJsContent.push(`    }else if(item.type === 'number'){`);
         mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = Number(item.value);`);
         mainJsContent.push(`    }else if(item.type === 'boolean'){`);
-        mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = Boolean(item.value);`);
+        mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = strToBoolean(item.value);`);
         mainJsContent.push(`    }else if(item.type === 'object'){`);
         mainJsContent.push(`        globalThis[\`_GLOBAL_$\{item.name}\`] = JSON.parse(item.value);`);
         mainJsContent.push(`    }`);
@@ -754,7 +755,7 @@ export default class UserApp {
             this.sendRunLogs({
                 level: 'info',
                 time: Date.now(),
-                message: `流程结束`
+                message: `流程结束 退出码:${code}`
             });
 
             this.sendRunStep({

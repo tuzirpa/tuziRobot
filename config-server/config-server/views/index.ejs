@@ -46,22 +46,30 @@
             border-radius: 4px;
             height: 300px;
             overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
         }
         .log-entry {
-            margin: 5px 0;
-            padding: 5px;
-            font-family: monospace;
+            margin: 2px 0;
+            padding: 2px 4px;
             white-space: pre-wrap;
             word-wrap: break-word;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .log-entry:last-child {
+            border-bottom: none;
         }
         .log-info { color: #409EFF; }
         .log-success { color: #67C23A; }
         .log-error { color: #F56C6C; }
         .log-output { color: #606266; }
+        .log-warning { color: #E6A23C; }
         .log-timestamp {
             color: #909399;
-            font-size: 0.8em;
+            font-size: 11px;
             margin-right: 8px;
+            font-weight: bold;
         }
         .status-indicator {
             display: inline-block;
@@ -99,28 +107,26 @@
             padding: 0;
         }
         .instruction-list li {
-            margin: 10px 0;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 4px;
-            line-height: 1.6;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
         }
-        .instruction-list li:before {
-            content: "•";
-            color: #409EFF;
-            font-weight: bold;
-            margin-right: 10px;
+        .instruction-list li:last-child {
+            border-bottom: none;
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .update-info {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #e4e7ed;
+            margin-top: 20px;
+            padding: 20px;
             border-radius: 4px;
-            background: #f8f9fa;
+            background-color: #f8f9fa;
         }
         .update-available {
-            border-color: #67C23A;
-            background: #f0f9eb;
+            background-color: #e8f5e8;
+            border: 1px solid #67C23A;
         }
         .version-compare {
             display: flex;
@@ -129,12 +135,14 @@
             margin: 10px 0;
         }
         .version-arrow {
+            font-size: 18px;
             color: #409EFF;
-            font-size: 20px;
         }
         .update-description {
-            margin: 10px 0;
-            white-space: pre-line;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #fff;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -145,80 +153,183 @@
                 <div class="header-content">
                     <div class="app-info">
                         <h2>{{ appInfo.name }}</h2>
-                        <el-tag>v{{ appInfo.version }}</el-tag>
-                        <el-tag :type="programStatus.isRunning ? 'success' : 'info'">
-                            <span class="status-indicator" :class="programStatus.isRunning ? 'status-running' : 'status-stopped'"></span>
-                            {{ programStatus.isRunning ? '运行中' : '已停止' }}
-                        </el-tag>
-                        <el-tag v-if="updateInfo.hasUpdate" type="warning">发现新版本</el-tag>
+                        <el-tag size="small">v{{ appInfo.version }}</el-tag>
+                        <span class="status-indicator" :class="programStatus.isRunning ? 'status-running' : 'status-stopped'"></span>
+                        <span>{{ programStatus.isRunning ? '运行中' : '已停止' }}</span>
                     </div>
                 </div>
             </el-header>
             
             <el-main class="main-container">
-                <el-tabs v-model="activeTab">
+                <el-tabs v-model="activeTab" type="border-card">
                     <!-- 应用信息标签页 -->
                     <el-tab-pane label="应用信息" name="info">
                         <div class="tab-content">
-                            <h3>应用详情</h3>
-                            <div class="app-description">
-                                <p><strong>应用名称：</strong>{{ appInfo.name }}</p>
-                                <p><strong>版本号：</strong>{{ appInfo.version }}</p>
-                                <p><strong>描述：</strong>{{ appInfo.description }}</p>
-                            </div>
-                        </div>
-                    </el-tab-pane>
-
-                    <!-- 使用说明标签页 -->
-                    <el-tab-pane label="使用说明" name="instructions">
-                        <div class="tab-content">
+                            <h3>应用描述</h3>
+                            <p class="app-description">{{ appInfo.description || '暂无描述' }}</p>
+                            
                             <h3>使用说明</h3>
-                            <ul class="instruction-list">
-                                <li>首先在"配置"标签页中设置必要的配置项</li>
-                                <li>确保所有配置项都已正确填写</li>
-                                <li>切换到"开始使用"标签页</li>
-                                <li>点击"运行"按钮启动程序</li>
-                                <li>可以随时在"开始使用"标签页查看运行日志</li>
-                                <li>如需停止程序，点击"停止"按钮即可</li>
-                            </ul>
+                            <ol class="instruction-list">
+                                <li>在"配置"标签页中设置程序运行所需的参数</li>
+                                <li>在"开始使用"标签页中配置自动重启设置并启动程序</li>
+                                <li>程序运行后可以在日志区域查看实时输出</li>
+                                <li>在"更新"标签页中可以检查和安装程序更新</li>
+                            </ol>
                         </div>
                     </el-tab-pane>
 
                     <!-- 配置标签页 -->
                     <el-tab-pane label="配置" name="config">
                         <div class="tab-content">
-                            <el-form class="config-form" label-width="120px">
-                                <el-form-item
-                                    v-for="item in exposedVariables"
-                                    :key="item.name"
-                                    :label="item.name">
-                                    <template #label>
-                                        <span>{{ item.name }}</span>
-                                        <el-tag size="small" style="margin-left: 5px">{{ item.type }}</el-tag>
-                                    </template>
-                                    <el-input
-                                        v-if="item.type !== 'boolean'"
-                                        v-model="item.value"
-                                        :type="item.type === 'number' ? 'number' : 'text'"
-                                        :placeholder="'请输入' + (item.display || item.name)">
-                                    </el-input>
-                                    <el-switch
-                                        v-else
-                                        v-model="item.value"
-                                        :active-value="true"
-                                        :inactive-value="false">
-                                    </el-switch>
-                                </el-form-item>
-                                <el-form-item>
-                                    <el-button type="primary" @click="saveConfig">保存配置</el-button>
-                                </el-form-item>
-                            </el-form>
+                            <div class="config-form">
+                                <h3>全局变量配置</h3>
+                                <el-form label-width="120px">
+                                    <el-form-item 
+                                        v-for="item in exposedVariables" 
+                                        :key="item.name"
+                                        :label="item.name">
+                                        <el-input
+                                            v-if="item.type !== 'boolean'"
+                                            v-model="item.value"
+                                            :type="item.type === 'number' ? 'number' : 'textarea'"
+                                            :placeholder="'请输入' + (item.display || item.name)">
+                                        </el-input>
+                                        <el-switch
+                                            v-else
+                                            v-model="item.value"
+                                            :active-value="true"
+                                            :inactive-value="false">
+                                        </el-switch>
+                                    </el-form-item>
+                                    <el-form-item>
+                                        <el-button type="primary" @click="saveConfig">保存配置</el-button>
+                                    </el-form-item>
+                                </el-form>
+                            </div>
                         </div>
                     </el-tab-pane>
 
                     <!-- 开始使用标签页 -->
                     <el-tab-pane label="开始使用" name="start">
                         <div class="tab-content">
+                            <div style="display: flex; gap: 20px;">
+                                <!-- 自动重启设置 -->
+                                <el-card style="margin-bottom: 20px;">
+                                    <template #header>
+                                        <div class="card-header">
+                                            <span>自动重启设置</span>
+                                            <el-tag 
+                                                :type="restartConfig.autoRestartEnabled ? 'success' : 'info'"
+                                                size="small">
+                                                {{ restartConfig.autoRestartEnabled ? '已启用' : '已禁用' }}
+                                            </el-tag>
+                                        </div>
+                                    </template>
+                                    
+                                    <el-form :model="restartConfig" label-width="120px" size="small">
+                                        <el-form-item label="启用自动重启">
+                                            <el-switch
+                                                v-model="restartConfig.autoRestartEnabled"
+                                                :active-value="true"
+                                                :inactive-value="false">
+                                            </el-switch>
+                                            <div style="color: #909399; font-size: 12px; margin-top: 5px;margin-left: 10px;">
+                                                程序异常退出时自动重启
+                                            </div>
+                                        </el-form-item>
+                                        
+                                        <el-form-item label="最大重启次数">
+                                            <el-input-number
+                                                v-model="restartConfig.maxRestartAttempts"
+                                                :min="1"
+                                                :max="20"
+                                                :disabled="!restartConfig.autoRestartEnabled">
+                                            </el-input-number>
+                                            <div style="color: #909399; font-size: 12px; margin-top: 5px;margin-left: 10px;">
+                                                达到最大次数后停止自动重启
+                                            </div>
+                                        </el-form-item>
+                                        
+                                        <el-form-item label="重启延迟(秒)">
+                                            <el-input-number
+                                                v-model="restartDelaySeconds"
+                                                :min="1"
+                                                :max="60"
+                                                :disabled="!restartConfig.autoRestartEnabled">
+                                            </el-input-number>
+                                            <div style="color: #909399; font-size: 12px; margin-top: 5px;margin-left: 10px;">
+                                                重启前等待的时间
+                                            </div>
+                                        </el-form-item>
+                                        
+                                        <el-form-item label="当前重启次数">
+                                            <el-tag 
+                                                :type="restartConfig.currentRestartCount > 0 ? 'warning' : 'info'"
+                                                size="small">
+                                                {{ restartConfig.currentRestartCount }} / {{ restartConfig.maxRestartAttempts }}
+                                            </el-tag>
+                                            <el-button 
+                                                type="primary" 
+                                                link 
+                                                size="small"
+                                                @click="resetRestartCount"
+                                                :disabled="restartConfig.currentRestartCount === 0">
+                                                重置计数
+                                            </el-button>
+                                        </el-form-item>
+                                        
+                                        <el-form-item>
+                                            <el-button 
+                                                type="primary" 
+                                                @click="saveRestartConfig"
+                                                :loading="isSavingRestartConfig">
+                                                保存设置
+                                            </el-button>
+                                        </el-form-item>
+                                    </el-form>
+                                </el-card>
+
+                                <!-- 日志设置 -->
+                                <el-card style="margin-bottom: 20px;">
+                                    <template #header>
+                                        <div class="card-header">
+                                            <span>日志设置</span>
+                                        </div>
+                                    </template>
+                                    
+                                    <el-form :model="logSettings" label-width="120px" size="small">
+                                        <el-form-item label="最大日志行数">
+                                            <el-input-number
+                                                v-model="logSettings.maxLogLines">
+                                            </el-input-number>
+                                            <div style="color: #909399; font-size: 12px; margin-top: 5px;margin-left: 10px;">
+                                                超过此数量时自动删除最旧的日志（建议100-2000行）
+                                            </div>
+                                        </el-form-item>
+                                        
+                                        <el-form-item label="自动滚动">
+                                            <el-switch
+                                                v-model="logSettings.autoScroll"
+                                                :active-value="true"
+                                                :inactive-value="false">
+                                            </el-switch>
+                                            <div style="color: #909399; font-size: 12px; margin-top: 5px;margin-left: 10px;">
+                                                新日志时自动滚动到底部
+                                            </div>
+                                        </el-form-item>
+                                        
+                                        <el-form-item>
+                                            <el-button 
+                                                type="primary" 
+                                                @click="saveLogSettings"
+                                                :loading="isSavingLogSettings">
+                                                保存设置
+                                            </el-button>
+                                        </el-form-item>
+                                    </el-form>
+                                </el-card>
+                            </div>
+
                             <div class="action-container">
                                 <el-button 
                                     v-if="!programStatus.isRunning"
@@ -244,9 +355,17 @@
                                 <template #header>
                                     <div class="card-header">
                                         <span>运行日志</span>
-                                        <el-button type="primary" link @click="clearLogs">
-                                            清除日志
-                                        </el-button>
+                                        <div>
+                                            <el-tag size="small" type="info" style="margin-right: 10px;">
+                                                当前 {{ getCurrentLogCount() }} / {{ logSettings.maxLogLines }} 条
+                                            </el-tag>
+                                            <el-button type="primary" link @click="exportLogs">
+                                                导出日志
+                                            </el-button>
+                                            <el-button type="primary" link @click="clearLogs">
+                                                清除日志
+                                            </el-button>
+                                        </div>
                                     </div>
                                 </template>
                                 <div class="log-container" id="logContainer"></div>
@@ -271,7 +390,7 @@
                                         :active-value="true"
                                         :inactive-value="false">
                                     </el-switch>
-                                    <div style="color: #909399; font-size: 12px; margin-top: 5px;">
+                                    <div style="color: #909399; font-size: 12px; margin-top: 5px;margin-left: 10px;">
                                         开启后，更新时将覆盖原有配置文件 (tuziAppData.json)
                                     </div>
                                 </el-form-item>
@@ -357,7 +476,30 @@
                     updateModule: ''
                 });
                 
+                // 自动重启配置
+                const restartConfig = ref({
+                    autoRestartEnabled: true,
+                    maxRestartAttempts: 5,
+                    currentRestartCount: 0,
+                    restartDelay: 3000
+                });
+                const isSavingRestartConfig = ref(false);
+                
+                // 日志设置
+                const logSettings = ref({
+                    maxLogLines: 500,
+                    autoScroll: true
+                });
+                const isSavingLogSettings = ref(false);
+
                 // 计算属性
+                const restartDelaySeconds = computed({
+                    get: () => Math.round(restartConfig.value.restartDelay / 1000),
+                    set: (value) => {
+                        restartConfig.value.restartDelay = value * 1000;
+                    }
+                });
+                
                 const exposedVariables = computed(() => {
                     return config.value.globalVariables.filter(v => v.exposed);
                 });
@@ -381,6 +523,17 @@
                 // 方法
                 function addLog(type, message, timestamp = new Date().toISOString()) {
                     const container = document.getElementById('logContainer');
+                    if (!container) return;
+                    
+                    // 限制日志数量，保持性能
+                    const maxLogs = logSettings.value.maxLogLines;
+                    const entries = container.children;
+                    
+                    // 如果日志太多，删除旧的
+                    if (entries.length >= maxLogs) {
+                        container.removeChild(entries[0]);
+                    }
+                    
                     const entry = document.createElement('div');
                     entry.className = `log-entry log-${type}`;
                     
@@ -395,12 +548,40 @@
                     entry.appendChild(content);
                     container.appendChild(entry);
                     
-                    container.scrollTop = container.scrollHeight;
+                    // 使用 requestAnimationFrame 优化滚动性能
+                    if (logSettings.value.autoScroll) {
+                        requestAnimationFrame(() => {
+                            container.scrollTop = container.scrollHeight;
+                        });
+                    }
                 }
 
                 function clearLogs() {
                     const container = document.getElementById('logContainer');
-                    container.innerHTML = '';
+                    if (container) {
+                        container.innerHTML = '';
+                    }
+                }
+                
+                // 导出日志功能
+                function exportLogs() {
+                    const container = document.getElementById('logContainer');
+                    if (!container) return;
+                    
+                    const entries = Array.from(container.children);
+                    const logText = entries.map(entry => {
+                        const time = entry.querySelector('.log-timestamp')?.textContent || '';
+                        const content = entry.querySelector('span:last-child')?.textContent || '';
+                        return `[${time}] ${content}`;
+                    }).join('\n');
+                    
+                    const blob = new Blob([logText], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `logs_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
                 }
 
                 async function saveConfig() {
@@ -430,16 +611,15 @@
                         const response = await fetch('/status');
                         const status = await response.json();
                         programStatus.value = status;
+                        
+                        // 更新重启配置信息
+                        if (status.restartInfo) {
+                            restartConfig.value.currentRestartCount = status.restartInfo.currentRestartCount;
+                        }
                     } catch (error) {
                         console.error('获取状态失败：', error);
                     }
                 }
-
-                // 定期检查状态
-                onMounted(() => {
-                    checkStatus();
-                    setInterval(checkStatus, 5000); // 每5秒检查一次
-                });
 
                 // 运行程序
                 async function runProgram() {
@@ -529,8 +709,6 @@
                             file: result.file,
                             updateModule: result.updateModule
                         };
-
-                        
                     } catch (error) {
                         ElMessage.error('检查更新失败：' + error.message);
                     } finally {
@@ -589,10 +767,120 @@
                     }
                 }
 
+                // 获取自动重启配置
+                async function getRestartConfig() {
+                    try {
+                        const response = await fetch('/restartConfig');
+                        const result = await response.json();
+                        if (result.success) {
+                            restartConfig.value = {
+                                autoRestartEnabled: result.autoRestartEnabled,
+                                maxRestartAttempts: result.maxRestartAttempts,
+                                currentRestartCount: result.currentRestartCount,
+                                restartDelay: result.restartDelay
+                            };
+                        }
+                    } catch (error) {
+                        console.error('获取自动重启配置失败：', error);
+                    }
+                }
+
+                // 保存自动重启配置
+                async function saveRestartConfig() {
+                    try {
+                        isSavingRestartConfig.value = true;
+                        const response = await fetch('/updateRestartConfig', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(restartConfig.value)
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            ElMessage.success('自动重启设置保存成功');
+                        } else {
+                            ElMessage.error('保存失败：' + result.error);
+                        }
+                    } catch (error) {
+                        ElMessage.error('保存失败：' + error.message);
+                    } finally {
+                        isSavingRestartConfig.value = false;
+                    }
+                }
+
+                // 重置重启计数
+                async function resetRestartCount() {
+                    try {
+                        const response = await fetch('/resetRestartCount', { method: 'POST' });
+                        const result = await response.json();
+                        if (result.success) {
+                            restartConfig.value.currentRestartCount = 0;
+                            ElMessage.success('重启计数已重置');
+                        } else {
+                            ElMessage.error('重置失败：' + result.error);
+                        }
+                    } catch (error) {
+                        ElMessage.error('重置失败：' + error.message);
+                    }
+                }
+
+                // 保存日志设置
+                async function saveLogSettings() {
+                    try {
+                        isSavingLogSettings.value = true;
+                        
+                        const response = await fetch('/saveLogSettings', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(logSettings.value)
+                        });
+                        
+                        const result = await response.json();
+                        if (result.success) {
+                            ElMessage.success('日志设置保存成功');
+                        } else {
+                            ElMessage.error('保存失败：' + result.error);
+                        }
+                    } catch (error) {
+                        ElMessage.error('保存失败：' + error.message);
+                    } finally {
+                        isSavingLogSettings.value = false;
+                    }
+                }
+                
+                // 加载日志设置
+                async function loadLogSettings() {
+                    try {
+                        const response = await fetch('/logSettings');
+                        const result = await response.json();
+                        if (result.success) {
+                            logSettings.value = {
+                                maxLogLines: result.maxLogLines || 500,
+                                autoScroll: result.autoScroll !== false
+                            };
+                        }
+                    } catch (error) {
+                        console.error('加载日志设置失败：', error);
+                    }
+                }
+
+                // 获取当前日志数量
+                function getCurrentLogCount() {
+                    const container = document.getElementById('logContainer');
+                    if (!container) return 0;
+                    return container.children.length;
+                }
+
                 // 初始化
                 onMounted(() => {
+                    checkStatus();
+                    setInterval(checkStatus, 5000); // 每5秒检查一次
                     getUpdateConfig();
-                    // ... existing mounted logic ...
+                    getRestartConfig();
+                    loadLogSettings(); // 加载日志设置
                 });
 
                 return {
@@ -603,6 +891,7 @@
                     programStatus,
                     isLoading,
                     clearLogs,
+                    exportLogs,
                     saveConfig,
                     runProgram,
                     stopProgram,
@@ -614,7 +903,16 @@
                     updateInfo,
                     saveUpdateConfig,
                     checkUpdate,
-                    startUpdate
+                    startUpdate,
+                    restartConfig,
+                    isSavingRestartConfig,
+                    restartDelaySeconds,
+                    resetRestartCount,
+                    saveRestartConfig,
+                    logSettings,
+                    isSavingLogSettings,
+                    saveLogSettings,
+                    getCurrentLogCount
                 };
             }
         });

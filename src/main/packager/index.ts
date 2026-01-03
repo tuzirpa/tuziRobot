@@ -28,30 +28,49 @@ export class Packager {
         await fs.ensureDir(finalOutputPath);
         await fs.ensureDir(appOutDir);
 
-        // 复制应用文件到临时目录
-        const excludeDirs = [
-            'userData', 
-            'logs',
-            'data', 
-            'images', 
-            'download', 
-            'screenshot',
-            'dev',
-            '.tuzi',
-            'elementLibrary',
-            'main.js',
-            'browserCloseScript.js',
-            'dist',
-            'node_modules'
-        ];
-
+        // 复制应用文件到临时目录（包含模式）
         // 复制应用文件
         const appCopy = fs.copy(userApp.appDir, appOutDir, {
             overwrite: true,
             preserveTimestamps: true,
             filter: (src) => {
                 const relativePath = path.relative(userApp.appDir, src);
-                return !excludeDirs.some(dir => relativePath.startsWith(dir));
+                const stat = fs.statSync(src);
+                
+                // 根目录始终包含（用于遍历）
+                if (relativePath === '') {
+                    return true;
+                }
+                
+                // 如果是目录，不包含
+                if (stat.isDirectory()) {
+                    return false;
+                }
+                
+                // 如果是文件，检查是否匹配包含条件
+                const fileName = path.basename(relativePath);
+                
+                // 包含 tuziAppData.json
+                if (fileName === 'tuziAppData.json') {
+                    return true;
+                }
+                
+                // 包含 main.js
+                if (fileName === 'main.js') {
+                    return true;
+                }
+                
+                // 包含 main.flow.js
+                if (fileName === 'main.flow.js') {
+                    return true;
+                }
+                
+                // 包含 subFlow数字开头的文件（如 subFlow1.flow.js, subFlow2.flow.js）
+                if (/^subFlow\d+\.flow\.js$/i.test(fileName)) {
+                    return true;
+                }
+                
+                return false;
             }
         });
 
